@@ -24,7 +24,9 @@ import {
   Scale,
   ChevronDown,
   AlertCircle,
-  Info
+  Info,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 
 // ============================================================================
@@ -127,8 +129,55 @@ const statesData = {
 };
 
 // ============================================================================
+// CSV EXPORT UTILITY
+// ============================================================================
+
+const downloadCSV = (data, filename, columns) => {
+  // Build header row
+  const headers = columns.map(col => col.label).join(',');
+  
+  // Build data rows
+  const rows = data.map(item => {
+    return columns.map(col => {
+      let value = col.accessor(item);
+      // Escape quotes and wrap in quotes if contains comma or quote
+      if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+        value = `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    }).join(',');
+  });
+  
+  const csv = [headers, ...rows].join('\n');
+  
+  // Create blob and download
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${filename}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+// ============================================================================
 // COMPONENTS
 // ============================================================================
+
+const DownloadButton = ({ onClick, label = 'Download CSV', count }) => (
+  <button
+    onClick={onClick}
+    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
+  >
+    <Download className="w-4 h-4" />
+    {label}
+    {count !== undefined && (
+      <span className="bg-blue-500 px-2 py-0.5 rounded-full text-xs font-mono">{count}</span>
+    )}
+  </button>
+);
 
 const ProgramBadge = ({ program }) => {
   const config = {
@@ -250,6 +299,18 @@ const OverviewTab = () => {
     teal: { border: 'border-teal-200', bg: 'bg-teal-50', text: 'text-teal-700', accent: 'text-teal-600', iconBg: 'bg-teal-100' },
   };
 
+  const handleDownloadAll = () => {
+    downloadCSV(pharmacyData, 'pharmacy-matrix-all-data', [
+      { label: 'Program', accessor: (d) => d.program },
+      { label: 'Pharmacy', accessor: (d) => d.pharmacy },
+      { label: 'Medication', accessor: (d) => d.medication },
+      { label: 'API Integration', accessor: (d) => d.api ? 'Yes' : 'No' },
+      { label: 'Carrier', accessor: (d) => d.carrier },
+      { label: 'Refills', accessor: (d) => d.refills },
+      { label: 'Notes', accessor: (d) => d.note || '' },
+    ]);
+  };
+
   return (
     <div className="space-y-8 animate-in">
       {/* Stats */}
@@ -267,6 +328,11 @@ const OverviewTab = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Download All Button */}
+      <div className="flex justify-end">
+        <DownloadButton onClick={handleDownloadAll} label="Export All Data" count={pharmacyData.length} />
       </div>
 
       {/* Program Cards */}
@@ -332,6 +398,26 @@ const PharmacyLookupTab = () => {
       return matchesSearch && matchesProgram && matchesPharmacy;
     });
   }, [searchTerm, selectedProgram, selectedPharmacy]);
+
+  const handleDownload = () => {
+    const filterSuffix = [
+      selectedProgram !== 'All' ? selectedProgram : '',
+      selectedPharmacy !== 'All' ? selectedPharmacy : '',
+      searchTerm ? searchTerm.replace(/\s+/g, '-') : '',
+    ].filter(Boolean).join('-');
+    
+    const filename = `pharmacy-lookup${filterSuffix ? '-' + filterSuffix : ''}`;
+    
+    downloadCSV(filteredData, filename, [
+      { label: 'Program', accessor: (d) => d.program },
+      { label: 'Pharmacy', accessor: (d) => d.pharmacy },
+      { label: 'Medication', accessor: (d) => d.medication },
+      { label: 'API Integration', accessor: (d) => d.api ? 'Yes' : 'No' },
+      { label: 'Carrier', accessor: (d) => d.carrier },
+      { label: 'Refills', accessor: (d) => d.refills },
+      { label: 'Notes', accessor: (d) => d.note || '' },
+    ]);
+  };
   
   return (
     <div className="space-y-6 animate-in">
@@ -407,10 +493,13 @@ const PharmacyLookupTab = () => {
         </div>
       </div>
       
-      <p className="text-center text-sm text-slate-500 flex items-center justify-center gap-2">
-        <Info className="w-4 h-4" />
-        Showing <span className="font-mono text-blue-600">{filteredData.length}</span> of <span className="font-mono text-blue-600">{pharmacyData.length}</span> entries
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500 flex items-center gap-2">
+          <Info className="w-4 h-4" />
+          Showing <span className="font-mono text-blue-600">{filteredData.length}</span> of <span className="font-mono text-blue-600">{pharmacyData.length}</span> entries
+        </p>
+        <DownloadButton onClick={handleDownload} label="Download Results" count={filteredData.length} />
+      </div>
     </div>
   );
 };
@@ -425,8 +514,22 @@ const MedicationsTab = () => {
     'Oral suspension': 'Oral Suspension',
   };
 
+  const handleDownload = () => {
+    downloadCSV(prescriptionData, 'medications-list', [
+      { label: 'Program', accessor: (d) => d.program },
+      { label: 'Medication', accessor: (d) => d.medication },
+      { label: 'Controlled Substance', accessor: (d) => d.controlled ? 'Yes' : 'No' },
+      { label: 'Form', accessor: (d) => formLabels[d.form] || d.form },
+      { label: 'Route of Administration', accessor: (d) => d.route },
+    ]);
+  };
+
   return (
-    <div className="animate-in">
+    <div className="animate-in space-y-6">
+      <div className="flex justify-end">
+        <DownloadButton onClick={handleDownload} label="Download Medications" count={prescriptionData.length} />
+      </div>
+      
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {prescriptionData.map((med, idx) => (
           <div key={idx} className="card p-5">
@@ -473,6 +576,100 @@ const StateCoverageTab = () => {
   const [selectedState, setSelectedState] = useState('');
   const states = Object.keys(statesData).sort();
   
+  const getStatusText = (status) => {
+    if (status === true) return 'Available';
+    if (status === false) return 'Unavailable';
+    if (status === 'limited') return 'Limited';
+    return 'Unknown';
+  };
+
+  const handleDownload = () => {
+    if (!selectedState || !statesData[selectedState]) return;
+    
+    const coverage = statesData[selectedState];
+    const rows = [];
+    
+    // TRT pharmacies
+    ['Empower', 'Curexa', 'TPH', 'Absolute', 'Belmar'].forEach(pharmacy => {
+      rows.push({
+        state: selectedState,
+        program: 'TRT',
+        pharmacy,
+        status: getStatusText(coverage.TRT?.[pharmacy])
+      });
+    });
+    
+    // HRT pharmacies
+    ['Belmar', 'Curexa'].forEach(pharmacy => {
+      rows.push({
+        state: selectedState,
+        program: 'HRT',
+        pharmacy,
+        status: getStatusText(coverage.HRT?.[pharmacy])
+      });
+    });
+    
+    // GLP pharmacies
+    ['Curexa', 'TPH', 'Absolute', 'RedRock'].forEach(pharmacy => {
+      rows.push({
+        state: selectedState,
+        program: 'GLP',
+        pharmacy,
+        status: getStatusText(coverage.GLP?.[pharmacy])
+      });
+    });
+    
+    downloadCSV(rows, `state-coverage-${selectedState.replace(/\s+/g, '-')}`, [
+      { label: 'State', accessor: (d) => d.state },
+      { label: 'Program', accessor: (d) => d.program },
+      { label: 'Pharmacy', accessor: (d) => d.pharmacy },
+      { label: 'Status', accessor: (d) => d.status },
+    ]);
+  };
+
+  const handleDownloadAllStates = () => {
+    const rows = [];
+    
+    Object.entries(statesData).forEach(([state, coverage]) => {
+      // TRT
+      ['Empower', 'Curexa', 'TPH', 'Absolute', 'Belmar'].forEach(pharmacy => {
+        rows.push({
+          state,
+          program: 'TRT',
+          pharmacy,
+          status: getStatusText(coverage.TRT?.[pharmacy])
+        });
+      });
+      
+      // HRT
+      ['Belmar', 'Curexa'].forEach(pharmacy => {
+        rows.push({
+          state,
+          program: 'HRT',
+          pharmacy,
+          status: getStatusText(coverage.HRT?.[pharmacy])
+        });
+      });
+      
+      // GLP
+      ['Curexa', 'TPH', 'Absolute', 'RedRock'].forEach(pharmacy => {
+        rows.push({
+          state,
+          program: 'GLP',
+          pharmacy,
+          status: getStatusText(coverage.GLP?.[pharmacy])
+        });
+      });
+    });
+    
+    downloadCSV(rows, 'state-coverage-all-states', [
+      { label: 'State', accessor: (d) => d.state },
+      { label: 'Program', accessor: (d) => d.program },
+      { label: 'Pharmacy', accessor: (d) => d.pharmacy },
+      { label: 'Status', accessor: (d) => d.status },
+    ]);
+  };
+  
   const CoverageSection = ({ program, coverage, pharmacyList, color, icon: Icon }) => {
     const colorMap = {
       blue: { border: 'border-blue-200', header: 'bg-blue-600 text-white' },
@@ -507,15 +704,31 @@ const StateCoverageTab = () => {
   return (
     <div className="space-y-6 animate-in">
       <div className="card p-4">
-        <label className="block text-xs font-mono uppercase tracking-wide text-blue-600 mb-1.5 flex items-center gap-1">
-          <MapPin className="w-3 h-3" /> Select State
-        </label>
-        <div className="relative">
-          <Map className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
-          <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)} className="select md:w-72 pl-10">
-            <option value="">Choose a state...</option>
-            {states.map(state => <option key={state} value={state}>{state}</option>)}
-          </select>
+        <div className="flex flex-col md:flex-row md:items-end gap-4">
+          <div className="flex-1">
+            <label className="block text-xs font-mono uppercase tracking-wide text-blue-600 mb-1.5 flex items-center gap-1">
+              <MapPin className="w-3 h-3" /> Select State
+            </label>
+            <div className="relative">
+              <Map className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
+              <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)} className="select md:w-72 pl-10">
+                <option value="">Choose a state...</option>
+                {states.map(state => <option key={state} value={state}>{state}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {selectedState && (
+              <DownloadButton onClick={handleDownload} label={`Download ${selectedState}`} />
+            )}
+            <button
+              onClick={handleDownloadAllStates}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-blue-200 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 active:bg-blue-100 transition-colors"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              All States
+            </button>
+          </div>
         </div>
       </div>
       
