@@ -4,7 +4,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+   CSS VARIABLES - LIGHT MODE (DEFAULT)
+   ============================================================================ */
 :root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
+  --bg-input: #ffffff;
+  
+  --border-primary: #e2e8f0;
+  --border-secondary: #cbd5e1;
+  --border-focus: #3b82f6;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --text-inverse: #ffffff;
+  
   --blue-50: #eff6ff;
   --blue-100: #dbeafe;
   --blue-200: #bfdbfe;
@@ -13,9 +32,39 @@
   --blue-700: #1d4ed8;
   --blue-800: #1e40af;
   --blue-900: #1e3a8a;
-  --blue-950: #172554;
+  
+  --accent-trt: #2563eb;
+  --accent-hrt: #e11d48;
+  --accent-glp: #0d9488;
 }
 
+/* ============================================================================
+   CSS VARIABLES - DARK MODE
+   ============================================================================ */
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-card: #1e293b;
+  --bg-hover: #334155;
+  --bg-input: #1e293b;
+  
+  --border-primary: #334155;
+  --border-secondary: #475569;
+  --border-focus: #3b82f6;
+  
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #64748b;
+  --text-inverse: #0f172a;
+  
+  --blue-50: #1e3a5f;
+  --blue-100: #1e3a8a;
+}
+
+/* ============================================================================
+   BASE STYLES
+   ============================================================================ */
 * {
   box-sizing: border-box;
   padding: 0;
@@ -28,9 +77,10 @@ html {
 
 body {
   font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: linear-gradient(135deg, var(--blue-50) 0%, #ffffff 50%, var(--blue-50) 100%);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
   min-height: 100vh;
-  color: var(--blue-950);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Scrollbar */
@@ -40,26 +90,26 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--blue-100);
+  background: var(--bg-tertiary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--blue-300);
+  background: var(--border-secondary);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--blue-400);
+  background: var(--text-tertiary);
 }
 
 ::selection {
-  background: var(--blue-200);
-  color: var(--blue-900);
+  background: rgba(59, 130, 246, 0.3);
+  color: var(--text-primary);
 }
 
 /* Focus */
 *:focus-visible {
-  outline: 2px solid var(--blue-500);
+  outline: 2px solid var(--border-focus);
   outline-offset: 2px;
 }
 
@@ -68,132 +118,551 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Cards */
+/* ============================================================================
+   CARD STYLES
+   ============================================================================ */
 .card {
-  @apply bg-white border border-blue-100 rounded-lg shadow-sm;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .card:hover {
-  @apply shadow-md;
-  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* Table */
+/* ============================================================================
+   TABLE STYLES
+   ============================================================================ */
 .data-table {
-  @apply w-full border-collapse bg-white rounded-lg overflow-hidden;
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
 }
 
 .data-table thead {
-  @apply bg-blue-600 text-white;
+  background: var(--accent-trt);
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .data-table th {
-  @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.data-table th:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.data-table th .sort-icon {
+  opacity: 0.5;
+  margin-left: 0.25rem;
+}
+
+.data-table th.sorted .sort-icon {
+  opacity: 1;
 }
 
 .data-table td {
-  @apply px-4 py-3 text-sm border-b border-blue-50;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border-primary);
+  transition: background-color 0.15s ease;
 }
 
-.data-table tbody tr:hover {
-  @apply bg-blue-50/50;
+.data-table tbody tr {
+  cursor: pointer;
+}
+
+.data-table tbody tr:hover td {
+  background: var(--bg-hover);
+}
+
+.data-table tbody tr.expanded td {
+  background: var(--bg-tertiary);
 }
 
 .data-table tbody tr:last-child td {
-  @apply border-b-0;
+  border-bottom: none;
 }
 
-/* Inputs */
+.data-table tbody tr:focus {
+  outline: none;
+}
+
+.data-table tbody tr:focus td {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* Expanded row details */
+.row-details {
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   INPUT STYLES
+   ============================================================================ */
 .input {
-  @apply w-full px-4 py-2.5 bg-white border border-blue-200 rounded-lg text-blue-900 text-sm;
-  @apply focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500;
-  @apply placeholder:text-blue-300;
+  width: 100%;
+  padding: 0.625rem 1rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.5rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
   transition: all 0.15s ease;
 }
 
+.input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
 .select {
-  @apply input cursor-pointer appearance-none pr-10;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%233b82f6' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  appearance: none;
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
   background-position: right 0.75rem center;
   background-size: 1.25em 1.25em;
   background-repeat: no-repeat;
+  cursor: pointer;
 }
 
-/* Badges */
+/* ============================================================================
+   BADGE STYLES
+   ============================================================================ */
 .badge {
-  @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
   font-family: 'JetBrains Mono', monospace;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .badge-trt {
-  @apply bg-blue-600 text-white;
+  background: #2563eb;
+  color: white;
 }
 
 .badge-hrt {
-  @apply bg-rose-500 text-white;
+  background: #e11d48;
+  color: white;
 }
 
 .badge-glp {
-  @apply bg-teal-600 text-white;
+  background: #0d9488;
+  color: white;
 }
 
-/* Buttons */
+/* Pharmacy badges */
+.pharmacy-empower { background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; }
+.pharmacy-curexa { background: #ecfeff; color: #0e7490; border: 1px solid #a5f3fc; }
+.pharmacy-tph { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+.pharmacy-absolute { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.pharmacy-belmar { background: #fdf2f8; color: #be185d; border: 1px solid #fbcfe8; }
+.pharmacy-redrock { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+
+[data-theme="dark"] .pharmacy-empower { background: #312e81; color: #a5b4fc; border-color: #4338ca; }
+[data-theme="dark"] .pharmacy-curexa { background: #164e63; color: #67e8f9; border-color: #0e7490; }
+[data-theme="dark"] .pharmacy-tph { background: #4c1d95; color: #c4b5fd; border-color: #7c3aed; }
+[data-theme="dark"] .pharmacy-absolute { background: #78350f; color: #fcd34d; border-color: #b45309; }
+[data-theme="dark"] .pharmacy-belmar { background: #831843; color: #f9a8d4; border-color: #be185d; }
+[data-theme="dark"] .pharmacy-redrock { background: #7f1d1d; color: #fca5a5; border-color: #dc2626; }
+
+/* Carrier badges */
+.carrier-fedex { background: #f3e8ff; color: #7c3aed; }
+.carrier-ups { background: #fef3c7; color: #b45309; }
+
+[data-theme="dark"] .carrier-fedex { background: #4c1d95; color: #c4b5fd; }
+[data-theme="dark"] .carrier-ups { background: #78350f; color: #fcd34d; }
+
+/* ============================================================================
+   BUTTON STYLES
+   ============================================================================ */
 .btn {
-  @apply px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border: none;
 }
 
 .btn-primary {
-  @apply bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800;
+  background: var(--accent-trt);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
 }
 
 .btn-ghost {
-  @apply text-blue-600 hover:bg-blue-50 active:bg-blue-100;
+  background: transparent;
+  color: var(--text-secondary);
 }
 
-/* Tab styling */
+.btn-ghost:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Copy button */
+.copy-btn {
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.copy-btn:hover {
+  color: var(--accent-trt);
+  background: var(--bg-hover);
+}
+
+.copy-btn.copied {
+  color: #10b981;
+}
+
+tr:hover .copy-btn,
+.card:hover .copy-btn,
+.copy-btn:focus {
+  opacity: 1;
+}
+
+/* ============================================================================
+   TAB STYLES
+   ============================================================================ */
 .tab {
-  @apply px-4 py-2 text-sm font-medium rounded-md transition-all duration-150;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  transition: all 0.15s ease;
+  border: none;
+  cursor: pointer;
 }
 
 .tab-active {
-  @apply bg-blue-600 text-white shadow-sm;
+  background: var(--accent-trt);
+  color: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .tab-inactive {
-  @apply text-blue-600 hover:bg-blue-50;
+  background: transparent;
+  color: var(--accent-trt);
 }
 
-/* Stat card */
+.tab-inactive:hover {
+  background: var(--bg-hover);
+}
+
+/* ============================================================================
+   STAT CARD
+   ============================================================================ */
 .stat-card {
-  @apply bg-white border border-blue-100 rounded-lg p-5;
-  @apply hover:shadow-md transition-shadow duration-200;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .stat-value {
-  @apply text-3xl font-bold text-blue-900;
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
   font-family: 'JetBrains Mono', monospace;
 }
 
 .stat-label {
-  @apply text-sm text-blue-500 mt-1;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
 }
 
-/* Status indicators */
+/* ============================================================================
+   STATUS INDICATORS
+   ============================================================================ */
 .status-available {
-  @apply text-emerald-600;
+  color: #10b981;
 }
 
 .status-unavailable {
-  @apply text-red-500;
+  color: #ef4444;
 }
 
 .status-limited {
-  @apply text-amber-500;
+  color: #f59e0b;
 }
 
-/* Animation */
+/* ============================================================================
+   COMMAND PALETTE
+   ============================================================================ */
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+  animation: fadeIn 0.15s ease;
+}
+
+.command-palette {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.75rem;
+  width: 100%;
+  max-width: 600px;
+  max-height: 70vh;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.command-input {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.command-input:focus {
+  outline: none;
+}
+
+.command-results {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.command-result {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.command-result:hover,
+.command-result.selected {
+  background: var(--bg-hover);
+}
+
+.command-result-icon {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.command-result-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.command-result-title {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.command-result-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.command-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border-primary);
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.command-footer kbd {
+  padding: 0.125rem 0.375rem;
+  background: var(--bg-tertiary);
+  border-radius: 0.25rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
+}
+
+/* ============================================================================
+   SEARCH HIGHLIGHTING
+   ============================================================================ */
+.highlight {
+  background: #fef08a;
+  color: #854d0e;
+  padding: 0 0.125rem;
+  border-radius: 0.125rem;
+}
+
+[data-theme="dark"] .highlight {
+  background: #854d0e;
+  color: #fef08a;
+}
+
+/* ============================================================================
+   TOOLTIP / POPOVER
+   ============================================================================ */
+.tooltip-container {
+  position: relative;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.75rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  z-index: 50;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.15s ease;
+  margin-bottom: 0.5rem;
+}
+
+.tooltip-container:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--border-primary);
+}
+
+/* ============================================================================
+   COMPARE VIEW
+   ============================================================================ */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+   RECENT SEARCHES
+   ============================================================================ */
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-tertiary);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.recent-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -203,14 +672,57 @@ body {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
-/* Pharmacy badges */
-.pharmacy-empower { @apply bg-indigo-100 text-indigo-700 border border-indigo-200; }
-.pharmacy-curexa { @apply bg-cyan-100 text-cyan-700 border border-cyan-200; }
-.pharmacy-tph { @apply bg-violet-100 text-violet-700 border border-violet-200; }
-.pharmacy-absolute { @apply bg-amber-100 text-amber-700 border border-amber-200; }
-.pharmacy-belmar { @apply bg-pink-100 text-pink-700 border border-pink-200; }
-.pharmacy-redrock { @apply bg-red-100 text-red-700 border border-red-200; }
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12px;
+  }
+  
+  header, footer, .no-print, .copy-btn, button:not(.print-btn) {
+    display: none !important;
+  }
+  
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    break-inside: avoid;
+  }
+  
+  .data-table {
+    font-size: 10px;
+  }
+  
+  .data-table thead {
+    background: #333 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .badge {
+    border: 1px solid #666 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .stat-card {
+    border: 1px solid #ccc !important;
+  }
+  
+  @page {
+    margin: 1cm;
+  }
+}
 
-/* Carrier badges */
-.carrier-fedex { @apply bg-purple-100 text-purple-700; }
-.carrier-ups { @apply bg-amber-100 text-amber-700; }
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+@media (max-width: 640px) {
+  .command-palette {
+    margin: 1rem;
+    max-height: 80vh;
+  }
+}
