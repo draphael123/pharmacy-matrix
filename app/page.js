@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Search, Pill, MapPin, Building2, Package, Map, Zap, Truck, Check, X,
   AlertTriangle, CircleDot, Syringe, Droplets, FlaskConical, TestTube, Activity, Heart, Scale,
   AlertCircle, Info, Download, FileSpreadsheet, Moon, Sun, Copy, CheckCircle, ChevronDown, ChevronUp,
-  Clock, Printer, ArrowLeftRight, Phone, Globe, ExternalLink
+  Clock, Printer, ArrowLeftRight, Phone, Globe, ExternalLink, ShieldAlert, Calendar, HelpCircle, ChevronRight
 } from 'lucide-react';
 
 // ============================================================================
@@ -103,13 +103,47 @@ const statesData = {
 };
 
 const pharmacyInfo = {
-  Empower: { phone: "(855) 503-6767", website: "empowerpharmacy.com", processing: "2-3 business days" },
-  Curexa: { phone: "(855) 927-3992", website: "curexapharmacy.com", processing: "1-2 business days" },
-  TPH: { phone: "(800) 404-8747", website: "tpharmacy.com", processing: "2-3 business days" },
-  Absolute: { phone: "(844) 722-7658", website: "absolutepharmacy.com", processing: "1-2 business days" },
-  Belmar: { phone: "(800) 525-9473", website: "belmarpharmacy.com", processing: "2-3 business days" },
-  "Red Rock": { phone: "(480) 899-4455", website: "redrockcompounding.com", processing: "2-3 business days" },
+  Empower: { phone: "(855) 503-6767", website: "empowerpharmacy.com", processing: "2-3 business days", api: false, carrier: "UPS" },
+  Curexa: { phone: "(855) 927-3992", website: "curexapharmacy.com", processing: "1-2 business days", api: true, carrier: "FedEx" },
+  TPH: { phone: "(800) 404-8747", website: "tpharmacy.com", processing: "2-3 business days", api: false, carrier: "UPS" },
+  Absolute: { phone: "(844) 722-7658", website: "absolutepharmacy.com", processing: "1-2 business days", api: true, carrier: "FedEx" },
+  Belmar: { phone: "(800) 525-9473", website: "belmarpharmacy.com", processing: "2-3 business days", api: false, carrier: "UPS" },
+  "Red Rock": { phone: "(480) 899-4455", website: "redrockcompounding.com", processing: "2-3 business days", api: false, carrier: "FedEx" },
 };
+
+const stateRestrictions = [
+  { state: "Alabama", restrictions: "Most restrictive state. Only Empower (TRT) and Curexa (TRT) available. No GLP or HRT services." },
+  { state: "North Carolina", restrictions: "Curexa cannot process T Cypionate orders. Red Rock GLP is limited." },
+  { state: "Iowa", restrictions: "Empower not available for TRT." },
+  { state: "Wisconsin", restrictions: "Empower not available for TRT. Belmar not available for HRT." },
+  { state: "New Jersey", restrictions: "Red Rock not available for GLP." },
+  { state: "Virginia", restrictions: "Absolute not available for TRT or GLP." },
+  { state: "Minnesota", restrictions: "Absolute not available for TRT or GLP." },
+  { state: "Kentucky", restrictions: "Red Rock GLP availability is limited." },
+];
+
+const controlledSubstances = [
+  { medication: "T Cypionate", program: "TRT", note: "Schedule III controlled substance" },
+  { medication: "T Cream", program: "TRT", note: "Schedule III controlled substance" },
+  { medication: "HCG", program: "TRT", note: "Requires special handling" },
+  { medication: "Estradiol/Testosterone", program: "HRT", note: "Schedule III controlled substance" },
+];
+
+const refillSchedules = [
+  { type: "GLP Injections", schedule: "Every 4-5 weeks", note: "Tirzepatide: 4 weeks, Semaglutide: 5 weeks" },
+  { type: "TRT Injections", schedule: "Every 4-12 weeks", note: "Depends on plan and pharmacy" },
+  { type: "Oral Medications", schedule: "Every 4-12 weeks", note: "30 days to 3 months supply" },
+  { type: "Topical/Creams", schedule: "Monthly or 3 months", note: "Depends on prescription" },
+  { type: "Hair Treatments", schedule: "Every 8 weeks", note: "Finasteride, Minoxidil" },
+];
+
+const faqData = [
+  { q: "How long until my order ships?", a: "API pharmacies (Curexa, Absolute): 1-2 days. Manual pharmacies (Empower, TPH, Belmar, Red Rock): 2-3 days." },
+  { q: "Which carrier will deliver my order?", a: "FedEx: Curexa, Absolute, Red Rock. UPS: Empower, TPH, Belmar." },
+  { q: "Can I get GLP medications in Alabama?", a: "No. Alabama has no GLP pharmacy coverage currently." },
+  { q: "Is my medication a controlled substance?", a: "T Cypionate, T Cream, HCG, and Estradiol/Testosterone are controlled substances requiring signature on delivery." },
+  { q: "When can I request a refill?", a: "Most medications can be refilled when 75% of the supply period has passed. Check specific refill windows by medication." },
+];
 
 // ============================================================================
 // UTILITIES
@@ -134,9 +168,7 @@ const downloadCSV = (data, filename, columns) => {
 const highlightText = (text, query) => {
   if (!query || !text) return text;
   const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  return text.split(regex).map((part, i) => 
-    regex.test(part) ? <mark key={i} className="highlight">{part}</mark> : part
-  );
+  return text.split(regex).map((part, i) => regex.test(part) ? <mark key={i} className="highlight">{part}</mark> : part);
 };
 
 const copyToClipboard = async (text) => {
@@ -315,21 +347,15 @@ const CommandPalette = ({ isOpen, onClose, onNavigate, addRecent }) => {
 };
 
 // ============================================================================
-// TABS
+// OVERVIEW TAB (ENHANCED)
 // ============================================================================
 
-const OverviewTab = () => {
+const OverviewTab = ({ onNavigate, recentSearches }) => {
   const stats = [
-    { label: 'Pharmacies', value: [...new Set(pharmacyData.map(d => d.pharmacy))].length, icon: Building2 },
+    { label: 'Pharmacies', value: Object.keys(pharmacyInfo).length, icon: Building2 },
     { label: 'Medications', value: prescriptionData.length, icon: Pill },
     { label: 'States Covered', value: Object.keys(statesData).length, icon: Map },
-    { label: 'API Integrated', value: [...new Set(pharmacyData.filter(d => d.api).map(d => d.pharmacy))].length, icon: Zap },
-  ];
-
-  const programs = [
-    { id: 'TRT', name: 'TRT', desc: 'Testosterone Replacement Therapy', icon: Activity },
-    { id: 'HRT', name: 'HRT', desc: 'Hormone Replacement Therapy', icon: Heart },
-    { id: 'GLP', name: 'GLP', desc: 'GLP-1 Weight Management', icon: Scale },
+    { label: 'API Integrated', value: Object.values(pharmacyInfo).filter(p => p.api).length, icon: Zap },
   ];
 
   const handleExport = () => {
@@ -342,67 +368,269 @@ const OverviewTab = () => {
 
   return (
     <div className="animate-in space-y-8">
-      {/* Stats */}
+      {/* Stats Row */}
       <div className="stat-grid">
         {stats.map(s => (
           <div key={s.label} className="stat-card">
-            <div>
-              <div className="stat-value">{s.value}</div>
-              <div className="stat-label">{s.label}</div>
-            </div>
+            <div><div className="stat-value">{s.value}</div><div className="stat-label">{s.label}</div></div>
             <div className="stat-icon"><s.icon className="w-6 h-6" /></div>
           </div>
         ))}
       </div>
 
-      {/* Actions */}
+      {/* Quick Actions */}
       <div className="section-header">
-        <div className="section-title"><Activity className="w-4 h-4" />Programs Overview</div>
+        <div className="section-title"><Activity className="w-4 h-4" />Quick Reference Dashboard</div>
         <div className="flex gap-2">
           <button onClick={() => window.print()} className="btn btn-secondary no-print"><Printer className="w-4 h-4" />Print</button>
           <button onClick={handleExport} className="btn btn-primary"><Download className="w-4 h-4" />Export All</button>
         </div>
       </div>
 
-      {/* Program Cards */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {programs.map(p => {
-          const pharmacies = [...new Set(pharmacyData.filter(d => d.program === p.id).map(d => d.pharmacy))];
-          const meds = [...new Set(pharmacyData.filter(d => d.program === p.id).map(d => d.medication))];
-          const Icon = p.icon;
-          return (
-            <div key={p.id} className={`card program-card ${p.id.toLowerCase()}`}>
-              <div className="card-body">
-                <div className="flex items-start gap-4 mb-6">
-                  <div className="stat-icon" style={{ background: `var(--${p.id.toLowerCase()}-bg)`, color: `var(--${p.id.toLowerCase()})` }}>
-                    <Icon className="w-6 h-6" />
+      {/* Two Column Layout */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* States with Restrictions */}
+        <div className="card">
+          <div className="card-header" style={{ background: 'linear-gradient(135deg, #fef3c7, #fde68a)', borderColor: '#fde68a' }}>
+            <div className="flex items-center gap-2" style={{ color: '#92400e' }}>
+              <AlertTriangle className="w-5 h-5" />
+              <h3 className="font-semibold">States with Restrictions</h3>
+            </div>
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            {stateRestrictions.map((item, idx) => (
+              <div key={item.state} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-[var(--bg-muted)] transition-colors" style={{ borderBottom: idx < stateRestrictions.length - 1 ? '1px solid var(--border-muted)' : 'none' }} onClick={() => onNavigate('states', { state: item.state })}>
+                <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--warning)' }} />
+                <div>
+                  <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{item.state}</div>
+                  <div className="text-sm" style={{ color: 'var(--text-muted)' }}>{item.restrictions}</div>
+                </div>
+                <ChevronRight className="w-4 h-4 ml-auto flex-shrink-0" style={{ color: 'var(--text-faint)' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Controlled Substances */}
+        <div className="card">
+          <div className="card-header" style={{ background: 'linear-gradient(135deg, #fee2e2, #fecaca)', borderColor: '#fecaca' }}>
+            <div className="flex items-center gap-2" style={{ color: '#991b1b' }}>
+              <ShieldAlert className="w-5 h-5" />
+              <h3 className="font-semibold">Controlled Substances</h3>
+            </div>
+          </div>
+          <div className="card-body">
+            <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>These medications require signature on delivery and have special handling requirements.</p>
+            <div className="space-y-3">
+              {controlledSubstances.map(item => (
+                <div key={item.medication} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--bg-muted)' }}>
+                  <div className="flex items-center gap-3">
+                    <Syringe className="w-4 h-4" style={{ color: 'var(--danger)' }} />
+                    <div>
+                      <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{item.medication}</div>
+                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{item.note}</div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold" style={{ color: `var(--${p.id.toLowerCase()})` }}>{p.name}</h3>
-                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{p.desc}</p>
+                  <ProgramBadge program={item.program} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pharmacy Quick Contacts */}
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center gap-2">
+            <Phone className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+            <h3 className="font-semibold">Pharmacy Quick Contacts</h3>
+          </div>
+        </div>
+        <div className="card-body">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(pharmacyInfo).map(([name, info]) => (
+              <div key={name} className="p-4 rounded-lg border" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <PharmacyBadge pharmacy={name} />
+                  <div className="flex gap-1">
+                    {info.api && <span className="badge badge-trt" style={{ fontSize: '0.625rem' }}>API</span>}
+                    <CarrierBadge carrier={info.carrier} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="text-center p-4 rounded-lg" style={{ background: 'var(--bg-muted)' }}>
-                    <div className="text-2xl font-bold font-mono" style={{ color: `var(--${p.id.toLowerCase()})` }}>{pharmacies.length}</div>
-                    <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Pharmacies</div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4" style={{ color: 'var(--text-faint)' }} />
+                    <span style={{ color: 'var(--text-secondary)' }}>{info.phone}</span>
+                    <CopyButton text={info.phone} className="opacity-100" />
                   </div>
-                  <div className="text-center p-4 rounded-lg" style={{ background: 'var(--bg-muted)' }}>
-                    <div className="text-2xl font-bold font-mono" style={{ color: `var(--${p.id.toLowerCase()})` }}>{meds.length}</div>
-                    <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Medications</div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" style={{ color: 'var(--text-faint)' }} />
+                    <span style={{ color: 'var(--text-muted)' }}>{info.processing}</span>
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {pharmacies.map(ph => <PharmacyBadge key={ph} pharmacy={ph} showTooltip />)}
                 </div>
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* Three Column Layout */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Processing Times */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+              <h3 className="font-semibold">Processing Times</h3>
+            </div>
+          </div>
+          <div className="card-body space-y-3">
+            <div className="p-3 rounded-lg" style={{ background: 'var(--success)', color: 'white' }}>
+              <div className="font-semibold text-sm">1-2 Business Days</div>
+              <div className="text-xs opacity-80">Curexa, Absolute (API)</div>
+            </div>
+            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-muted)' }}>
+              <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>2-3 Business Days</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Empower, TPH, Belmar, Red Rock</div>
+            </div>
+          </div>
+        </div>
+
+        {/* API vs Manual */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+              <h3 className="font-semibold">API vs Manual</h3>
+            </div>
+          </div>
+          <div className="card-body space-y-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--success)' }}>API (Auto-Process)</div>
+              <div className="flex flex-wrap gap-1">
+                <PharmacyBadge pharmacy="Curexa" />
+                <PharmacyBadge pharmacy="Absolute" />
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>Manual Processing</div>
+              <div className="flex flex-wrap gap-1">
+                <PharmacyBadge pharmacy="Empower" />
+                <PharmacyBadge pharmacy="TPH" />
+                <PharmacyBadge pharmacy="Belmar" />
+                <PharmacyBadge pharmacy="Red Rock" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Carriers */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center gap-2">
+              <Truck className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+              <h3 className="font-semibold">Shipping Carriers</h3>
+            </div>
+          </div>
+          <div className="card-body space-y-3">
+            <div>
+              <div className="flex items-center gap-2 mb-2"><CarrierBadge carrier="FedEx" /></div>
+              <div className="flex flex-wrap gap-1">
+                <PharmacyBadge pharmacy="Curexa" />
+                <PharmacyBadge pharmacy="Absolute" />
+                <PharmacyBadge pharmacy="Red Rock" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2"><CarrierBadge carrier="UPS" /></div>
+              <div className="flex flex-wrap gap-1">
+                <PharmacyBadge pharmacy="Empower" />
+                <PharmacyBadge pharmacy="TPH" />
+                <PharmacyBadge pharmacy="Belmar" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Refill Schedules */}
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+            <h3 className="font-semibold">Refill Schedule Quick Reference</h3>
+          </div>
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Medication Type</th>
+                  <th>Typical Schedule</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {refillSchedules.map(item => (
+                  <tr key={item.type}>
+                    <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{item.type}</td>
+                    <td><span className="badge" style={{ background: 'var(--accent-subtle)', color: 'var(--accent)' }}>{item.schedule}</span></td>
+                    <td style={{ color: 'var(--text-muted)' }}>{item.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* FAQ */}
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center gap-2">
+            <HelpCircle className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+            <h3 className="font-semibold">Common Questions Quick Answers</h3>
+          </div>
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          {faqData.map((item, idx) => (
+            <div key={idx} className="p-4" style={{ borderBottom: idx < faqData.length - 1 ? '1px solid var(--border-muted)' : 'none' }}>
+              <div className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>{item.q}</div>
+              <div className="text-sm" style={{ color: 'var(--text-muted)' }}>{item.a}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Searches */}
+      {recentSearches.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+              <h3 className="font-semibold">Your Recent Searches</h3>
+            </div>
+          </div>
+          <div className="card-body">
+            <div className="recent-list">
+              {recentSearches.map(r => (
+                <button key={r.id} onClick={() => onNavigate(r.type === 'state' ? 'states' : 'lookup', r.type === 'state' ? { state: r.data.state } : r.type === 'pharmacy' ? { pharmacy: r.data.pharmacy } : { search: r.data.medication })} className="recent-item">
+                  <r.icon className="w-4 h-4" />{r.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+// ============================================================================
+// OTHER TABS
+// ============================================================================
 
 const PharmacyLookupTab = ({ initialFilters = {} }) => {
   const [search, setSearch] = useState(initialFilters.search || '');
@@ -442,7 +670,6 @@ const PharmacyLookupTab = ({ initialFilters = {} }) => {
 
   return (
     <div className="animate-in space-y-6">
-      {/* Filters */}
       <div className="card card-body">
         <div className="grid md:grid-cols-4 gap-4">
           <div className="md:col-span-2">
@@ -455,10 +682,7 @@ const PharmacyLookupTab = ({ initialFilters = {} }) => {
           <div>
             <label className="form-label"><Activity className="w-3 h-3" />Program</label>
             <select className="form-input form-select" value={program} onChange={e => setProgram(e.target.value)}>
-              <option value="All">All Programs</option>
-              <option value="TRT">TRT</option>
-              <option value="HRT">HRT</option>
-              <option value="GLP">GLP</option>
+              <option value="All">All Programs</option><option value="TRT">TRT</option><option value="HRT">HRT</option><option value="GLP">GLP</option>
             </select>
           </div>
           <div>
@@ -470,7 +694,6 @@ const PharmacyLookupTab = ({ initialFilters = {} }) => {
         </div>
       </div>
 
-      {/* Table */}
       <div className="table-wrapper">
         <div className="table-scroll">
           <table className="data-table">
@@ -479,10 +702,7 @@ const PharmacyLookupTab = ({ initialFilters = {} }) => {
                 <th onClick={() => handleSort('program')} className={sort.key === 'program' ? 'sorted' : ''}>Program <SortIcon col="program" /></th>
                 <th onClick={() => handleSort('pharmacy')} className={sort.key === 'pharmacy' ? 'sorted' : ''}>Pharmacy <SortIcon col="pharmacy" /></th>
                 <th onClick={() => handleSort('medication')} className={sort.key === 'medication' ? 'sorted' : ''}>Medication <SortIcon col="medication" /></th>
-                <th>API</th>
-                <th>Carrier</th>
-                <th>Refills</th>
-                <th>Notes</th>
+                <th>API</th><th>Carrier</th><th>Refills</th><th>Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -491,9 +711,7 @@ const PharmacyLookupTab = ({ initialFilters = {} }) => {
                   <tr key={idx} className={expanded === idx ? 'expanded' : ''} onClick={() => setExpanded(expanded === idx ? null : idx)}>
                     <td><ProgramBadge program={item.program} /></td>
                     <td><PharmacyBadge pharmacy={item.pharmacy} showTooltip /></td>
-                    <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                      <div className="flex items-center gap-2">{highlightText(item.medication, search)}<CopyButton text={item.medication} /></div>
-                    </td>
+                    <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}><div className="flex items-center gap-2">{highlightText(item.medication, search)}<CopyButton text={item.medication} /></div></td>
                     <td><ApiStatus hasApi={item.api} /></td>
                     <td><CarrierBadge carrier={item.carrier} /></td>
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{item.refills}</td>
@@ -503,16 +721,9 @@ const PharmacyLookupTab = ({ initialFilters = {} }) => {
                     <tr className="row-details">
                       <td colSpan={7}>
                         <div className="p-6 grid md:grid-cols-3 gap-6">
-                          <div>
-                            <div className="form-label" style={{ marginBottom: '0.5rem' }}>Full Notes</div>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{item.note || 'No additional notes'}</p>
-                          </div>
-                          <div>
-                            <div className="form-label" style={{ marginBottom: '0.5rem' }}>Refill Schedule</div>
-                            <p className="flex items-center gap-2" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{item.refills}<CopyButton text={item.refills} className="opacity-100" /></p>
-                          </div>
-                          <div>
-                            <div className="form-label" style={{ marginBottom: '0.5rem' }}>Pharmacy Contact</div>
+                          <div><div className="form-label" style={{ marginBottom: '0.5rem' }}>Full Notes</div><p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{item.note || 'No additional notes'}</p></div>
+                          <div><div className="form-label" style={{ marginBottom: '0.5rem' }}>Refill Schedule</div><p className="flex items-center gap-2" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{item.refills}<CopyButton text={item.refills} className="opacity-100" /></p></div>
+                          <div><div className="form-label" style={{ marginBottom: '0.5rem' }}>Pharmacy Contact</div>
                             {pharmacyInfo[item.pharmacy] && (
                               <div className="space-y-2" style={{ fontSize: '0.875rem' }}>
                                 <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}><Phone className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />{pharmacyInfo[item.pharmacy].phone}<CopyButton text={pharmacyInfo[item.pharmacy].phone} className="opacity-100" /></div>
@@ -531,12 +742,9 @@ const PharmacyLookupTab = ({ initialFilters = {} }) => {
         </div>
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between">
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }} className="flex items-center gap-2">
-          <Info className="w-4 h-4" />
-          Showing <span className="font-mono" style={{ color: 'var(--accent)' }}>{filtered.length}</span> of <span className="font-mono" style={{ color: 'var(--accent)' }}>{pharmacyData.length}</span> results
-          <span style={{ color: 'var(--text-faint)' }}>• Click row to expand</span>
+          <Info className="w-4 h-4" />Showing <span className="font-mono" style={{ color: 'var(--accent)' }}>{filtered.length}</span> of <span className="font-mono" style={{ color: 'var(--accent)' }}>{pharmacyData.length}</span> results
         </p>
         <button onClick={handleExport} className="btn btn-primary"><Download className="w-4 h-4" />Download<span className="badge" style={{ background: 'rgba(255,255,255,0.2)', marginLeft: '0.5rem' }}>{filtered.length}</span></button>
       </div>
@@ -575,17 +783,11 @@ const MedicationsTab = () => {
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="stat-icon" style={{ width: '44px', height: '44px' }}><FormIcon form={med.form} /></div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Form</div>
-                  <div style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formLabels[med.form] || med.form}</div>
-                </div>
+                <div><div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Form</div><div style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formLabels[med.form] || med.form}</div></div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="stat-icon" style={{ width: '44px', height: '44px' }}><MapPin className="w-5 h-5" style={{ color: 'var(--accent)' }} /></div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Route</div>
-                  <div style={{ color: 'var(--text-secondary)' }}>{med.route}</div>
-                </div>
+                <div><div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Route</div><div style={{ color: 'var(--text-secondary)' }}>{med.route}</div></div>
               </div>
             </div>
           </div>
@@ -665,7 +867,6 @@ const StateCoverageTab = ({ initialState = '' }) => {
 
   return (
     <div className="animate-in space-y-6">
-      {/* Selector */}
       <div className="card card-body">
         <div className="flex flex-col md:flex-row md:items-end gap-4">
           <div className="flex-1">
@@ -697,13 +898,9 @@ const StateCoverageTab = ({ initialState = '' }) => {
         )}
       </div>
 
-      {/* Coverage */}
       {state && statesData[state] ? (
         comparing && compareState ? (
-          <div className="compare-grid">
-            <StateCoverage st={state} />
-            <StateCoverage st={compareState} />
-          </div>
+          <div className="compare-grid"><StateCoverage st={state} /><StateCoverage st={compareState} /></div>
         ) : (
           <>
             <StateCoverage st={state} showTitle={false} />
@@ -718,13 +915,7 @@ const StateCoverageTab = ({ initialState = '' }) => {
           </>
         )
       ) : (
-        <div className="card">
-          <div className="empty-state">
-            <div className="empty-state-icon"><Map className="w-10 h-10" /></div>
-            <div className="empty-state-title">Select a State</div>
-            <p className="empty-state-text">Choose a state from the dropdown above to view pharmacy coverage information.</p>
-          </div>
-        </div>
+        <div className="card"><div className="empty-state"><div className="empty-state-icon"><Map className="w-10 h-10" /></div><div className="empty-state-title">Select a State</div><p className="empty-state-text">Choose a state from the dropdown above to view pharmacy coverage information.</p></div></div>
       )}
     </div>
   );
@@ -763,20 +954,13 @@ export default function PharmacyMatrix() {
     <div className="min-h-screen flex flex-col">
       <CommandPalette isOpen={cmdOpen} onClose={() => setCmdOpen(false)} onNavigate={navigate} addRecent={addRecent} />
 
-      {/* Header */}
       <header className="sticky top-0 z-50 border-b" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }}>
         <div className="container">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="stat-icon" style={{ width: '40px', height: '40px', background: 'var(--accent)', color: 'white', borderRadius: '10px' }}>
-                <Package className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Pharmacy Matrix</h1>
-                <p className="text-xs font-mono" style={{ color: 'var(--text-faint)', marginTop: '-2px' }}>Internal Reference</p>
-              </div>
+              <div className="stat-icon" style={{ width: '40px', height: '40px', background: 'var(--accent)', color: 'white', borderRadius: '10px' }}><Package className="w-5 h-5" /></div>
+              <div><h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Pharmacy Matrix</h1><p className="text-xs font-mono" style={{ color: 'var(--text-faint)', marginTop: '-2px' }}>Internal Reference</p></div>
             </div>
-
             <div className="flex items-center gap-3">
               <button onClick={() => setCmdOpen(true)} className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
                 <Search className="w-4 h-4" /><span>Search</span><kbd className="ml-2 px-1.5 py-0.5 rounded text-xs font-mono" style={{ background: 'var(--bg-subtle)', color: 'var(--text-faint)' }}>⌘K</kbd>
@@ -786,8 +970,6 @@ export default function PharmacyMatrix() {
               </button>
             </div>
           </div>
-
-          {/* Tabs */}
           <div className="pb-4 -mb-px overflow-x-auto no-print">
             <div className="tab-list inline-flex">
               {tabs.map(t => (
@@ -800,7 +982,6 @@ export default function PharmacyMatrix() {
         </div>
       </header>
 
-      {/* Warning */}
       <div className="no-print" style={{ background: '#fef3c7', borderBottom: '1px solid #fde68a' }}>
         <div className="container py-3">
           <p className="text-sm flex items-start gap-2" style={{ color: '#92400e' }}>
@@ -810,29 +991,13 @@ export default function PharmacyMatrix() {
         </div>
       </div>
 
-      {/* Recent */}
-      {recent.length > 0 && tab === 'overview' && (
-        <div className="container pt-6 no-print">
-          <div className="section-title" style={{ marginBottom: '0.75rem' }}><Clock className="w-4 h-4" />Recent Searches</div>
-          <div className="recent-list">
-            {recent.map(r => (
-              <button key={r.id} onClick={() => navigate(r.type === 'state' ? 'states' : 'lookup', r.type === 'state' ? { state: r.data.state } : r.type === 'pharmacy' ? { pharmacy: r.data.pharmacy } : { search: r.data.medication })} className="recent-item">
-                <r.icon className="w-4 h-4" />{r.title}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Main */}
       <main className="container flex-1 py-8">
-        {tab === 'overview' && <OverviewTab />}
+        {tab === 'overview' && <OverviewTab onNavigate={navigate} recentSearches={recent} />}
         {tab === 'lookup' && <PharmacyLookupTab initialFilters={tabParams} />}
         {tab === 'medications' && <MedicationsTab />}
         {tab === 'states' && <StateCoverageTab initialState={tabParams.state} />}
       </main>
 
-      {/* Footer */}
       <footer className="border-t no-print" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }}>
         <div className="container py-4">
           <p className="text-center text-sm flex items-center justify-center gap-2" style={{ color: 'var(--text-faint)' }}>
