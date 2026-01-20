@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, Search, Pill, MapPin, Building2, Package, Map, Zap, Truck, Check, X,
   AlertTriangle, CircleDot, Syringe, Droplets, FlaskConical, TestTube, Activity, Heart, Scale,
-  AlertCircle, Info, Download, FileSpreadsheet, Moon, Sun, Command, ArrowUp, ArrowDown,
-  Copy, CheckCircle, ChevronDown, ChevronUp, Clock, Printer, ArrowLeftRight, Phone, Globe, ExternalLink
+  AlertCircle, Info, Download, FileSpreadsheet, Moon, Sun, Copy, CheckCircle, ChevronDown, ChevronUp,
+  Clock, Printer, ArrowLeftRight, Phone, Globe, ExternalLink
 } from 'lucide-react';
 
 // ============================================================================
@@ -116,16 +116,13 @@ const pharmacyInfo = {
 // ============================================================================
 
 const downloadCSV = (data, filename, columns) => {
-  const headers = columns.map(col => col.label).join(',');
-  const rows = data.map(item => columns.map(col => {
-    let value = col.accessor(item);
-    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
-      value = `"${value.replace(/"/g, '""')}"`;
-    }
-    return value;
+  const headers = columns.map(c => c.label).join(',');
+  const rows = data.map(item => columns.map(c => {
+    let v = c.accessor(item);
+    if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) v = `"${v.replace(/"/g, '""')}"`;
+    return v;
   }).join(','));
-  const csv = [headers, ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([[headers, ...rows].join('\n')], { type: 'text/csv' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `${filename}.csv`;
@@ -137,19 +134,13 @@ const downloadCSV = (data, filename, columns) => {
 const highlightText = (text, query) => {
   if (!query || !text) return text;
   const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  const parts = text.split(regex);
-  return parts.map((part, i) => 
+  return text.split(regex).map((part, i) => 
     regex.test(part) ? <mark key={i} className="highlight">{part}</mark> : part
   );
 };
 
 const copyToClipboard = async (text) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
+  try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
 };
 
 // ============================================================================
@@ -158,43 +149,34 @@ const copyToClipboard = async (text) => {
 
 const useTheme = () => {
   const [theme, setTheme] = useState('light');
-  
   useEffect(() => {
-    const saved = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initial = saved || (prefersDark ? 'dark' : 'light');
-    setTheme(initial);
-    document.documentElement.setAttribute('data-theme', initial);
+    const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    setTheme(saved);
+    document.documentElement.setAttribute('data-theme', saved);
   }, []);
-  
-  const toggleTheme = () => {
+  const toggle = () => {
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     localStorage.setItem('theme', next);
     document.documentElement.setAttribute('data-theme', next);
   };
-  
-  return [theme, toggleTheme];
+  return [theme, toggle];
 };
 
 const useRecentSearches = () => {
   const [recent, setRecent] = useState([]);
-  
   useEffect(() => {
     const saved = localStorage.getItem('recentSearches');
     if (saved) setRecent(JSON.parse(saved));
   }, []);
-  
-  const addRecent = (item) => {
+  const add = (item) => {
     setRecent(prev => {
-      const filtered = prev.filter(r => r.id !== item.id);
-      const updated = [item, ...filtered].slice(0, 5);
+      const updated = [item, ...prev.filter(r => r.id !== item.id)].slice(0, 5);
       localStorage.setItem('recentSearches', JSON.stringify(updated));
       return updated;
     });
   };
-  
-  return [recent, addRecent];
+  return [recent, add];
 };
 
 // ============================================================================
@@ -203,47 +185,34 @@ const useRecentSearches = () => {
 
 const CopyButton = ({ text, className = '' }) => {
   const [copied, setCopied] = useState(false);
-  
   const handleCopy = async (e) => {
     e.stopPropagation();
-    const success = await copyToClipboard(text);
-    if (success) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    if (await copyToClipboard(text)) { setCopied(true); setTimeout(() => setCopied(false), 2000); }
   };
-  
   return (
-    <button onClick={handleCopy} className={`copy-btn ${copied ? 'copied' : ''} ${className}`} title="Copy to clipboard">
+    <button onClick={handleCopy} className={`copy-btn ${copied ? 'copied' : ''} ${className}`} title="Copy">
       {copied ? <CheckCircle className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
     </button>
   );
 };
 
 const ProgramBadge = ({ program }) => {
-  const config = { TRT: { class: 'badge-trt', icon: Activity }, HRT: { class: 'badge-hrt', icon: Heart }, GLP: { class: 'badge-glp', icon: Scale } };
-  const { class: className, icon: Icon } = config[program];
-  return <span className={`badge ${className}`}><Icon className="w-3 h-3 mr-1" />{program}</span>;
+  const cfg = { TRT: { icon: Activity, cls: 'badge-trt' }, HRT: { icon: Heart, cls: 'badge-hrt' }, GLP: { icon: Scale, cls: 'badge-glp' } };
+  const { icon: Icon, cls } = cfg[program];
+  return <span className={`badge ${cls}`}><Icon className="w-3 h-3" />{program}</span>;
 };
 
 const PharmacyBadge = ({ pharmacy, showTooltip = false }) => {
-  const styles = { Empower: 'pharmacy-empower', Curexa: 'pharmacy-curexa', TPH: 'pharmacy-tph', Absolute: 'pharmacy-absolute', Belmar: 'pharmacy-belmar', 'Red Rock': 'pharmacy-redrock' };
+  const clsMap = { Empower: 'badge-empower', Curexa: 'badge-curexa', TPH: 'badge-tph', Absolute: 'badge-absolute', Belmar: 'badge-belmar', 'Red Rock': 'badge-redrock' };
   const info = pharmacyInfo[pharmacy];
-  
-  const badge = (
-    <span className={`badge ${styles[pharmacy] || 'bg-gray-100 text-gray-700'}`}>
-      <Building2 className="w-3 h-3 mr-1" />{pharmacy}
-    </span>
-  );
-  
+  const badge = <span className={`badge ${clsMap[pharmacy] || 'badge-pharmacy'}`}><Building2 className="w-3 h-3" />{pharmacy}</span>;
   if (!showTooltip || !info) return badge;
-  
   return (
-    <span className="tooltip-container">
+    <span className="tooltip-trigger">
       {badge}
-      <div className="tooltip">
-        <div className="text-sm font-semibold mb-2">{pharmacy}</div>
-        <div className="space-y-1 text-xs">
+      <div className="tooltip-content">
+        <div className="font-semibold mb-2">{pharmacy}</div>
+        <div className="space-y-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
           <div className="flex items-center gap-2"><Phone className="w-3 h-3" />{info.phone}</div>
           <div className="flex items-center gap-2"><Globe className="w-3 h-3" />{info.website}</div>
           <div className="flex items-center gap-2"><Clock className="w-3 h-3" />{info.processing}</div>
@@ -253,37 +222,28 @@ const PharmacyBadge = ({ pharmacy, showTooltip = false }) => {
   );
 };
 
-const CarrierBadge = ({ carrier }) => {
-  const styles = { FedEx: 'carrier-fedex', UPS: 'carrier-ups' };
-  return <span className={`badge ${styles[carrier]}`}><Truck className="w-3 h-3 mr-1" />{carrier}</span>;
-};
+const CarrierBadge = ({ carrier }) => (
+  <span className={`badge ${carrier === 'FedEx' ? 'badge-fedex' : 'badge-ups'}`}><Truck className="w-3 h-3" />{carrier}</span>
+);
 
 const ApiStatus = ({ hasApi }) => (
-  <span className={`inline-flex items-center gap-1.5 text-xs font-mono ${hasApi ? 'text-emerald-600' : 'opacity-50'}`}>
-    {hasApi ? <Zap className="w-3.5 h-3.5" /> : <CircleDot className="w-3.5 h-3.5" />}
-    {hasApi ? 'Yes' : 'No'}
+  <span className={`api-indicator ${hasApi ? 'active' : 'inactive'}`}>
+    {hasApi ? <Zap className="w-3.5 h-3.5" /> : <CircleDot className="w-3.5 h-3.5" />}{hasApi ? 'Yes' : 'No'}
   </span>
 );
 
-const StatusIcon = ({ status }) => {
-  if (status === true) return <span className="status-available font-medium inline-flex items-center gap-1"><Check className="w-4 h-4" />Available</span>;
-  if (status === false) return <span className="status-unavailable font-medium inline-flex items-center gap-1"><X className="w-4 h-4" />Unavailable</span>;
-  if (status === 'limited') return <span className="status-limited font-medium inline-flex items-center gap-1"><AlertTriangle className="w-4 h-4" />Limited</span>;
-  return <span className="opacity-50">—</span>;
+const StatusIndicator = ({ status }) => {
+  if (status === true) return <span className="status status-available"><Check className="w-4 h-4" />Available</span>;
+  if (status === false) return <span className="status status-unavailable"><X className="w-4 h-4" />Unavailable</span>;
+  if (status === 'limited') return <span className="status status-limited"><AlertTriangle className="w-4 h-4" />Limited</span>;
+  return <span style={{ color: 'var(--text-faint)' }}>—</span>;
 };
 
 const FormIcon = ({ form }) => {
   const icons = { 'Injections': Syringe, 'Tablet': Pill, 'Capsule': Pill, 'Cream': Droplets, 'Topical solution': FlaskConical, 'Oral suspension': TestTube };
   const Icon = icons[form] || Pill;
-  return <Icon className="w-5 h-5 text-blue-500" />;
+  return <Icon className="w-5 h-5" style={{ color: 'var(--accent)' }} />;
 };
-
-const DownloadButton = ({ onClick, label = 'Download CSV', count }) => (
-  <button onClick={onClick} className="btn btn-primary">
-    <Download className="w-4 h-4" />{label}
-    {count !== undefined && <span className="bg-blue-500 px-2 py-0.5 rounded-full text-xs font-mono">{count}</span>}
-  </button>
-);
 
 // ============================================================================
 // COMMAND PALETTE
@@ -291,88 +251,63 @@ const DownloadButton = ({ onClick, label = 'Download CSV', count }) => (
 
 const CommandPalette = ({ isOpen, onClose, onNavigate, addRecent }) => {
   const [query, setQuery] = useState('');
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef(null);
-  
+
   const results = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
     const items = [];
-    
-    // Search medications
     pharmacyData.forEach(item => {
-      if (item.medication.toLowerCase().includes(q)) {
-        items.push({ type: 'medication', title: item.medication, subtitle: `${item.program} • ${item.pharmacy}`, data: item, icon: Pill });
-      }
+      if (item.medication.toLowerCase().includes(q)) items.push({ type: 'medication', title: item.medication, subtitle: `${item.program} • ${item.pharmacy}`, data: item, icon: Pill });
     });
-    
-    // Search pharmacies
-    [...new Set(pharmacyData.map(d => d.pharmacy))].forEach(pharmacy => {
-      if (pharmacy.toLowerCase().includes(q)) {
-        items.push({ type: 'pharmacy', title: pharmacy, subtitle: 'Pharmacy', data: { pharmacy }, icon: Building2 });
-      }
+    [...new Set(pharmacyData.map(d => d.pharmacy))].forEach(p => {
+      if (p.toLowerCase().includes(q)) items.push({ type: 'pharmacy', title: p, subtitle: 'Pharmacy', data: { pharmacy: p }, icon: Building2 });
     });
-    
-    // Search states
-    Object.keys(statesData).forEach(state => {
-      if (state.toLowerCase().includes(q)) {
-        items.push({ type: 'state', title: state, subtitle: 'State Coverage', data: { state }, icon: MapPin });
-      }
+    Object.keys(statesData).forEach(s => {
+      if (s.toLowerCase().includes(q)) items.push({ type: 'state', title: s, subtitle: 'State Coverage', data: { state: s }, icon: MapPin });
     });
-    
     return items.slice(0, 8);
   }, [query]);
-  
-  useEffect(() => {
-    if (isOpen) {
-      inputRef.current?.focus();
-      setQuery('');
-      setSelectedIndex(0);
-    }
-  }, [isOpen]);
-  
-  useEffect(() => { setSelectedIndex(0); }, [query]);
-  
+
+  useEffect(() => { if (isOpen) { inputRef.current?.focus(); setQuery(''); setSelectedIdx(0); } }, [isOpen]);
+  useEffect(() => { setSelectedIdx(0); }, [query]);
+
   const handleKeyDown = (e) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, results.length - 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter' && results[selectedIndex]) { handleSelect(results[selectedIndex]); }
-    else if (e.key === 'Escape') { onClose(); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, results.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter' && results[selectedIdx]) handleSelect(results[selectedIdx]);
+    else if (e.key === 'Escape') onClose();
   };
-  
+
   const handleSelect = (item) => {
     addRecent({ id: `${item.type}-${item.title}`, ...item });
     if (item.type === 'state') onNavigate('states', { state: item.data.state });
     else if (item.type === 'pharmacy') onNavigate('lookup', { pharmacy: item.data.pharmacy });
-    else if (item.type === 'medication') onNavigate('lookup', { search: item.data.medication });
+    else onNavigate('lookup', { search: item.data.medication });
     onClose();
   };
-  
+
   if (!isOpen) return null;
-  
+
   return (
-    <div className="command-palette-overlay" onClick={onClose}>
-      <div className="command-palette" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-3 px-4 border-b border-[var(--border-primary)]">
-          <Search className="w-5 h-5 opacity-50" />
-          <input ref={inputRef} type="text" className="command-input" placeholder="Search medications, pharmacies, states..." value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} />
+    <div className="command-overlay" onClick={onClose}>
+      <div className="command-modal" onClick={e => e.stopPropagation()}>
+        <div className="command-header">
+          <Search className="w-5 h-5" />
+          <input ref={inputRef} className="command-input" placeholder="Search medications, pharmacies, states..." value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} />
         </div>
         <div className="command-results">
-          {results.length === 0 && query && <div className="p-8 text-center opacity-50">No results found</div>}
+          {results.length === 0 && query && <div className="empty-state" style={{ padding: '2rem' }}><p style={{ color: 'var(--text-muted)' }}>No results found for "{query}"</p></div>}
           {results.map((item, idx) => (
-            <div key={`${item.type}-${item.title}`} className={`command-result ${idx === selectedIndex ? 'selected' : ''}`} onClick={() => handleSelect(item)} onMouseEnter={() => setSelectedIndex(idx)}>
+            <div key={`${item.type}-${item.title}`} className={`command-result ${idx === selectedIdx ? 'selected' : ''}`} onClick={() => handleSelect(item)} onMouseEnter={() => setSelectedIdx(idx)}>
               <div className="command-result-icon"><item.icon className="w-4 h-4" /></div>
-              <div className="command-result-content">
-                <div className="command-result-title">{highlightText(item.title, query)}</div>
-                <div className="command-result-subtitle">{item.subtitle}</div>
-              </div>
+              <div><div className="command-result-title">{highlightText(item.title, query)}</div><div className="command-result-subtitle">{item.subtitle}</div></div>
             </div>
           ))}
         </div>
         <div className="command-footer">
-          <span><kbd>↑↓</kbd> Navigate</span>
-          <span><kbd>↵</kbd> Select</span>
-          <span><kbd>esc</kbd> Close</span>
+          <span><kbd>↑↓</kbd>Navigate</span><span><kbd>↵</kbd>Select</span><span><kbd>esc</kbd>Close</span>
         </div>
       </div>
     </div>
@@ -384,27 +319,21 @@ const CommandPalette = ({ isOpen, onClose, onNavigate, addRecent }) => {
 // ============================================================================
 
 const OverviewTab = () => {
-  const programs = [
-    { id: 'TRT', name: 'TRT', description: 'Testosterone Replacement Therapy', color: 'blue', icon: Activity },
-    { id: 'HRT', name: 'HRT', description: 'Hormone Replacement Therapy', color: 'rose', icon: Heart },
-    { id: 'GLP', name: 'GLP', description: 'GLP-1 Weight Management', color: 'teal', icon: Scale },
-  ];
-  
   const stats = [
     { label: 'Pharmacies', value: [...new Set(pharmacyData.map(d => d.pharmacy))].length, icon: Building2 },
     { label: 'Medications', value: prescriptionData.length, icon: Pill },
     { label: 'States Covered', value: Object.keys(statesData).length, icon: Map },
     { label: 'API Integrated', value: [...new Set(pharmacyData.filter(d => d.api).map(d => d.pharmacy))].length, icon: Zap },
   ];
-  
-  const colorMap = {
-    blue: { border: 'border-blue-200', bg: 'bg-blue-50', accent: 'text-blue-600', iconBg: 'bg-blue-100' },
-    rose: { border: 'border-rose-200', bg: 'bg-rose-50', accent: 'text-rose-600', iconBg: 'bg-rose-100' },
-    teal: { border: 'border-teal-200', bg: 'bg-teal-50', accent: 'text-teal-600', iconBg: 'bg-teal-100' },
-  };
 
-  const handleDownloadAll = () => {
-    downloadCSV(pharmacyData, 'pharmacy-matrix-all-data', [
+  const programs = [
+    { id: 'TRT', name: 'TRT', desc: 'Testosterone Replacement Therapy', icon: Activity },
+    { id: 'HRT', name: 'HRT', desc: 'Hormone Replacement Therapy', icon: Heart },
+    { id: 'GLP', name: 'GLP', desc: 'GLP-1 Weight Management', icon: Scale },
+  ];
+
+  const handleExport = () => {
+    downloadCSV(pharmacyData, 'pharmacy-matrix-export', [
       { label: 'Program', accessor: d => d.program }, { label: 'Pharmacy', accessor: d => d.pharmacy },
       { label: 'Medication', accessor: d => d.medication }, { label: 'API', accessor: d => d.api ? 'Yes' : 'No' },
       { label: 'Carrier', accessor: d => d.carrier }, { label: 'Refills', accessor: d => d.refills }, { label: 'Notes', accessor: d => d.note || '' },
@@ -412,44 +341,61 @@ const OverviewTab = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(stat => (
-          <div key={stat.label} className="stat-card">
-            <div className="flex items-start justify-between">
-              <div><div className="stat-value">{stat.value}</div><div className="stat-label">{stat.label}</div></div>
-              <div className="p-2 bg-blue-50 rounded-lg"><stat.icon className="w-5 h-5 text-blue-600" /></div>
+    <div className="animate-in space-y-8">
+      {/* Stats */}
+      <div className="stat-grid">
+        {stats.map(s => (
+          <div key={s.label} className="stat-card">
+            <div>
+              <div className="stat-value">{s.value}</div>
+              <div className="stat-label">{s.label}</div>
             </div>
+            <div className="stat-icon"><s.icon className="w-6 h-6" /></div>
           </div>
         ))}
       </div>
-      <div className="flex justify-between items-center">
-        <button onClick={() => window.print()} className="btn btn-secondary no-print"><Printer className="w-4 h-4" />Print View</button>
-        <DownloadButton onClick={handleDownloadAll} label="Export All Data" count={pharmacyData.length} />
+
+      {/* Actions */}
+      <div className="section-header">
+        <div className="section-title"><Activity className="w-4 h-4" />Programs Overview</div>
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="btn btn-secondary no-print"><Printer className="w-4 h-4" />Print</button>
+          <button onClick={handleExport} className="btn btn-primary"><Download className="w-4 h-4" />Export All</button>
+        </div>
       </div>
+
+      {/* Program Cards */}
       <div className="grid md:grid-cols-3 gap-6">
-        {programs.map(program => {
-          const pharmacies = [...new Set(pharmacyData.filter(d => d.program === program.id).map(d => d.pharmacy))];
-          const medications = [...new Set(pharmacyData.filter(d => d.program === program.id).map(d => d.medication))];
-          const colors = colorMap[program.color];
-          const Icon = program.icon;
+        {programs.map(p => {
+          const pharmacies = [...new Set(pharmacyData.filter(d => d.program === p.id).map(d => d.pharmacy))];
+          const meds = [...new Set(pharmacyData.filter(d => d.program === p.id).map(d => d.medication))];
+          const Icon = p.icon;
           return (
-            <div key={program.id} className={`card p-6 ${colors.border}`}>
-              <div className="flex items-center gap-3 mb-1">
-                <div className={`p-2 rounded-lg ${colors.iconBg}`}><Icon className={`w-5 h-5 ${colors.accent}`} /></div>
-                <div><h3 className={`text-xl font-bold ${colors.accent}`}>{program.name}</h3><p className="text-xs opacity-60">{program.description}</p></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 my-5">
-                <div className={`${colors.bg} rounded-lg p-3 text-center`}>
-                  <div className={`text-2xl font-bold font-mono ${colors.accent}`}>{pharmacies.length}</div>
-                  <div className="text-xs opacity-60 uppercase tracking-wide flex items-center justify-center gap-1"><Building2 className="w-3 h-3" />Pharmacies</div>
+            <div key={p.id} className={`card program-card ${p.id.toLowerCase()}`}>
+              <div className="card-body">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="stat-icon" style={{ background: `var(--${p.id.toLowerCase()}-bg)`, color: `var(--${p.id.toLowerCase()})` }}>
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold" style={{ color: `var(--${p.id.toLowerCase()})` }}>{p.name}</h3>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{p.desc}</p>
+                  </div>
                 </div>
-                <div className={`${colors.bg} rounded-lg p-3 text-center`}>
-                  <div className={`text-2xl font-bold font-mono ${colors.accent}`}>{medications.length}</div>
-                  <div className="text-xs opacity-60 uppercase tracking-wide flex items-center justify-center gap-1"><Pill className="w-3 h-3" />Medications</div>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="text-center p-4 rounded-lg" style={{ background: 'var(--bg-muted)' }}>
+                    <div className="text-2xl font-bold font-mono" style={{ color: `var(--${p.id.toLowerCase()})` }}>{pharmacies.length}</div>
+                    <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Pharmacies</div>
+                  </div>
+                  <div className="text-center p-4 rounded-lg" style={{ background: 'var(--bg-muted)' }}>
+                    <div className="text-2xl font-bold font-mono" style={{ color: `var(--${p.id.toLowerCase()})` }}>{meds.length}</div>
+                    <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Medications</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {pharmacies.map(ph => <PharmacyBadge key={ph} pharmacy={ph} showTooltip />)}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-1.5">{pharmacies.map(p => <PharmacyBadge key={p} pharmacy={p} showTooltip />)}</div>
             </div>
           );
         })}
@@ -459,132 +405,118 @@ const OverviewTab = () => {
 };
 
 const PharmacyLookupTab = ({ initialFilters = {} }) => {
-  const [searchTerm, setSearchTerm] = useState(initialFilters.search || '');
-  const [selectedProgram, setSelectedProgram] = useState('All');
-  const [selectedPharmacy, setSelectedPharmacy] = useState(initialFilters.pharmacy || 'All');
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  const [expandedRow, setExpandedRow] = useState(null);
-  const [focusedRow, setFocusedRow] = useState(-1);
-  const tableRef = useRef(null);
-  
+  const [search, setSearch] = useState(initialFilters.search || '');
+  const [program, setProgram] = useState('All');
+  const [pharmacy, setPharmacy] = useState(initialFilters.pharmacy || 'All');
+  const [sort, setSort] = useState({ key: null, dir: 'asc' });
+  const [expanded, setExpanded] = useState(null);
   const pharmacies = ['All', ...new Set(pharmacyData.map(d => d.pharmacy))];
-  
-  const filteredData = useMemo(() => {
+
+  const filtered = useMemo(() => {
     let data = pharmacyData.filter(item => {
-      const matchesSearch = !searchTerm || item.medication.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesProgram = selectedProgram === 'All' || item.program === selectedProgram;
-      const matchesPharmacy = selectedPharmacy === 'All' || item.pharmacy === selectedPharmacy;
-      return matchesSearch && matchesProgram && matchesPharmacy;
+      const matchSearch = !search || item.medication.toLowerCase().includes(search.toLowerCase());
+      const matchProgram = program === 'All' || item.program === program;
+      const matchPharmacy = pharmacy === 'All' || item.pharmacy === pharmacy;
+      return matchSearch && matchProgram && matchPharmacy;
     });
-    if (sortConfig.key) {
+    if (sort.key) {
       data = [...data].sort((a, b) => {
-        const aVal = a[sortConfig.key] ?? '';
-        const bVal = b[sortConfig.key] ?? '';
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (a[sort.key] < b[sort.key]) return sort.dir === 'asc' ? -1 : 1;
+        if (a[sort.key] > b[sort.key]) return sort.dir === 'asc' ? 1 : -1;
         return 0;
       });
     }
     return data;
-  }, [searchTerm, selectedProgram, selectedPharmacy, sortConfig]);
+  }, [search, program, pharmacy, sort]);
 
-  const handleSort = (key) => {
-    setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
-  };
+  const handleSort = (key) => setSort(prev => ({ key, dir: prev.key === key && prev.dir === 'asc' ? 'desc' : 'asc' }));
+  const SortIcon = ({ col }) => sort.key !== col ? <ChevronDown className="w-3 h-3 opacity-30" /> : sort.dir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />;
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setFocusedRow(i => Math.min(i + 1, filteredData.length - 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setFocusedRow(i => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter' && focusedRow >= 0) { setExpandedRow(expandedRow === focusedRow ? null : focusedRow); }
-    else if (e.key === 'Escape') { setExpandedRow(null); setFocusedRow(-1); }
-  };
-
-  useEffect(() => {
-    if (focusedRow >= 0) {
-      const row = tableRef.current?.querySelector(`[data-row="${focusedRow}"]`);
-      row?.scrollIntoView({ block: 'nearest' });
-      row?.focus();
-    }
-  }, [focusedRow]);
-
-  const handleDownload = () => {
-    downloadCSV(filteredData, `pharmacy-lookup${selectedProgram !== 'All' ? '-' + selectedProgram : ''}${selectedPharmacy !== 'All' ? '-' + selectedPharmacy : ''}`, [
+  const handleExport = () => {
+    downloadCSV(filtered, `pharmacy-lookup${program !== 'All' ? `-${program}` : ''}${pharmacy !== 'All' ? `-${pharmacy}` : ''}`, [
       { label: 'Program', accessor: d => d.program }, { label: 'Pharmacy', accessor: d => d.pharmacy },
       { label: 'Medication', accessor: d => d.medication }, { label: 'API', accessor: d => d.api ? 'Yes' : 'No' },
       { label: 'Carrier', accessor: d => d.carrier }, { label: 'Refills', accessor: d => d.refills }, { label: 'Notes', accessor: d => d.note || '' },
     ]);
   };
 
-  const SortIcon = ({ column }) => {
-    if (sortConfig.key !== column) return <ChevronDown className="w-3 h-3 sort-icon" />;
-    return sortConfig.direction === 'asc' ? <ChevronUp className="w-3 h-3 sort-icon" /> : <ChevronDown className="w-3 h-3 sort-icon" />;
-  };
-  
   return (
-    <div className="space-y-6 animate-in">
-      <div className="card p-4">
+    <div className="animate-in space-y-6">
+      {/* Filters */}
+      <div className="card card-body">
         <div className="grid md:grid-cols-4 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-xs font-mono uppercase tracking-wide text-blue-600 mb-1.5 flex items-center gap-1"><Search className="w-3 h-3" />Search Medication</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40" />
-              <input type="text" placeholder="Type medication name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input select pl-10" />
+            <label className="form-label"><Search className="w-3 h-3" />Search Medication</label>
+            <div className="input-icon">
+              <Search className="icon w-4 h-4" />
+              <input type="text" className="form-input form-select" placeholder="Type medication name..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-mono uppercase tracking-wide text-blue-600 mb-1.5 flex items-center gap-1"><Activity className="w-3 h-3" />Program</label>
-            <select value={selectedProgram} onChange={e => setSelectedProgram(e.target.value)} className="input select">
-              <option value="All">All Programs</option><option value="TRT">TRT</option><option value="HRT">HRT</option><option value="GLP">GLP</option>
+            <label className="form-label"><Activity className="w-3 h-3" />Program</label>
+            <select className="form-input form-select" value={program} onChange={e => setProgram(e.target.value)}>
+              <option value="All">All Programs</option>
+              <option value="TRT">TRT</option>
+              <option value="HRT">HRT</option>
+              <option value="GLP">GLP</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-mono uppercase tracking-wide text-blue-600 mb-1.5 flex items-center gap-1"><Building2 className="w-3 h-3" />Pharmacy</label>
-            <select value={selectedPharmacy} onChange={e => setSelectedPharmacy(e.target.value)} className="input select">
+            <label className="form-label"><Building2 className="w-3 h-3" />Pharmacy</label>
+            <select className="form-input form-select" value={pharmacy} onChange={e => setPharmacy(e.target.value)}>
               {pharmacies.map(p => <option key={p} value={p}>{p === 'All' ? 'All Pharmacies' : p}</option>)}
             </select>
           </div>
         </div>
       </div>
-      
-      <div className="card overflow-hidden" ref={tableRef} onKeyDown={handleKeyDown} tabIndex={0}>
-        <div className="overflow-x-auto max-h-[600px]">
+
+      {/* Table */}
+      <div className="table-wrapper">
+        <div className="table-scroll">
           <table className="data-table">
             <thead>
               <tr>
-                <th onClick={() => handleSort('program')} className={sortConfig.key === 'program' ? 'sorted' : ''}>Program<SortIcon column="program" /></th>
-                <th onClick={() => handleSort('pharmacy')} className={sortConfig.key === 'pharmacy' ? 'sorted' : ''}>Pharmacy<SortIcon column="pharmacy" /></th>
-                <th onClick={() => handleSort('medication')} className={sortConfig.key === 'medication' ? 'sorted' : ''}>Medication<SortIcon column="medication" /></th>
-                <th>API</th><th>Carrier</th><th>Refills</th><th>Notes</th>
+                <th onClick={() => handleSort('program')} className={sort.key === 'program' ? 'sorted' : ''}>Program <SortIcon col="program" /></th>
+                <th onClick={() => handleSort('pharmacy')} className={sort.key === 'pharmacy' ? 'sorted' : ''}>Pharmacy <SortIcon col="pharmacy" /></th>
+                <th onClick={() => handleSort('medication')} className={sort.key === 'medication' ? 'sorted' : ''}>Medication <SortIcon col="medication" /></th>
+                <th>API</th>
+                <th>Carrier</th>
+                <th>Refills</th>
+                <th>Notes</th>
               </tr>
             </thead>
             <tbody>
-              {filteredData.map((item, idx) => (
+              {filtered.map((item, idx) => (
                 <>
-                  <tr key={idx} data-row={idx} tabIndex={-1} className={expandedRow === idx ? 'expanded' : ''} onClick={() => setExpandedRow(expandedRow === idx ? null : idx)} onFocus={() => setFocusedRow(idx)}>
+                  <tr key={idx} className={expanded === idx ? 'expanded' : ''} onClick={() => setExpanded(expanded === idx ? null : idx)}>
                     <td><ProgramBadge program={item.program} /></td>
                     <td><PharmacyBadge pharmacy={item.pharmacy} showTooltip /></td>
-                    <td className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {highlightText(item.medication, searchTerm)}
-                        <CopyButton text={item.medication} />
-                      </div>
+                    <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                      <div className="flex items-center gap-2">{highlightText(item.medication, search)}<CopyButton text={item.medication} /></div>
                     </td>
                     <td><ApiStatus hasApi={item.api} /></td>
                     <td><CarrierBadge carrier={item.carrier} /></td>
-                    <td className="text-xs opacity-70"><div className="flex items-center gap-2">{item.refills}<CopyButton text={item.refills} /></div></td>
-                    <td className="text-xs opacity-50 max-w-[180px] truncate">{item.note || '—'}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{item.refills}</td>
+                    <td style={{ color: 'var(--text-faint)', fontSize: '0.8125rem', maxWidth: '200px' }} className="truncate">{item.note || '—'}</td>
                   </tr>
-                  {expandedRow === idx && (
+                  {expanded === idx && (
                     <tr className="row-details">
                       <td colSpan={7}>
-                        <div className="p-4 grid md:grid-cols-3 gap-4">
-                          <div><div className="text-xs font-mono uppercase opacity-50 mb-1">Full Notes</div><div className="text-sm">{item.note || 'No additional notes'}</div></div>
-                          <div><div className="text-xs font-mono uppercase opacity-50 mb-1">Refill Schedule</div><div className="text-sm flex items-center gap-2">{item.refills}<CopyButton text={item.refills} className="opacity-100" /></div></div>
-                          <div><div className="text-xs font-mono uppercase opacity-50 mb-1">Pharmacy Contact</div>
+                        <div className="p-6 grid md:grid-cols-3 gap-6">
+                          <div>
+                            <div className="form-label" style={{ marginBottom: '0.5rem' }}>Full Notes</div>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{item.note || 'No additional notes'}</p>
+                          </div>
+                          <div>
+                            <div className="form-label" style={{ marginBottom: '0.5rem' }}>Refill Schedule</div>
+                            <p className="flex items-center gap-2" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{item.refills}<CopyButton text={item.refills} className="opacity-100" /></p>
+                          </div>
+                          <div>
+                            <div className="form-label" style={{ marginBottom: '0.5rem' }}>Pharmacy Contact</div>
                             {pharmacyInfo[item.pharmacy] && (
-                              <div className="text-sm space-y-1">
-                                <div className="flex items-center gap-2"><Phone className="w-3 h-3" />{pharmacyInfo[item.pharmacy].phone}<CopyButton text={pharmacyInfo[item.pharmacy].phone} className="opacity-100" /></div>
-                                <div className="flex items-center gap-2"><Globe className="w-3 h-3" />{pharmacyInfo[item.pharmacy].website}</div>
+                              <div className="space-y-2" style={{ fontSize: '0.875rem' }}>
+                                <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}><Phone className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />{pharmacyInfo[item.pharmacy].phone}<CopyButton text={pharmacyInfo[item.pharmacy].phone} className="opacity-100" /></div>
+                                <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}><Globe className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />{pharmacyInfo[item.pharmacy].website}</div>
                               </div>
                             )}
                           </div>
@@ -598,12 +530,15 @@ const PharmacyLookupTab = ({ initialFilters = {} }) => {
           </table>
         </div>
       </div>
-      
+
+      {/* Footer */}
       <div className="flex items-center justify-between">
-        <p className="text-sm opacity-60 flex items-center gap-2">
-          <Info className="w-4 h-4" />Showing <span className="font-mono text-blue-600">{filteredData.length}</span> of <span className="font-mono text-blue-600">{pharmacyData.length}</span> • Click row to expand • <kbd className="px-1 py-0.5 bg-[var(--bg-tertiary)] rounded text-xs">↑↓</kbd> navigate
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }} className="flex items-center gap-2">
+          <Info className="w-4 h-4" />
+          Showing <span className="font-mono" style={{ color: 'var(--accent)' }}>{filtered.length}</span> of <span className="font-mono" style={{ color: 'var(--accent)' }}>{pharmacyData.length}</span> results
+          <span style={{ color: 'var(--text-faint)' }}>• Click row to expand</span>
         </p>
-        <DownloadButton onClick={handleDownload} label="Download Results" count={filteredData.length} />
+        <button onClick={handleExport} className="btn btn-primary"><Download className="w-4 h-4" />Download<span className="badge" style={{ background: 'rgba(255,255,255,0.2)', marginLeft: '0.5rem' }}>{filtered.length}</span></button>
       </div>
     </div>
   );
@@ -612,7 +547,7 @@ const PharmacyLookupTab = ({ initialFilters = {} }) => {
 const MedicationsTab = () => {
   const formLabels = { 'Injections': 'Injectable', 'Tablet': 'Oral Tablet', 'Capsule': 'Oral Capsule', 'Cream': 'Topical Cream', 'Topical solution': 'Topical Solution', 'Oral suspension': 'Oral Suspension' };
 
-  const handleDownload = () => {
+  const handleExport = () => {
     downloadCSV(prescriptionData, 'medications-list', [
       { label: 'Program', accessor: d => d.program }, { label: 'Medication', accessor: d => d.medication },
       { label: 'Controlled', accessor: d => d.controlled ? 'Yes' : 'No' }, { label: 'Form', accessor: d => formLabels[d.form] || d.form }, { label: 'Route', accessor: d => d.route },
@@ -621,26 +556,36 @@ const MedicationsTab = () => {
 
   return (
     <div className="animate-in space-y-6">
-      <div className="flex justify-end gap-2">
-        <button onClick={() => window.print()} className="btn btn-secondary no-print"><Printer className="w-4 h-4" />Print</button>
-        <DownloadButton onClick={handleDownload} label="Download Medications" count={prescriptionData.length} />
+      <div className="section-header">
+        <div className="section-title"><Pill className="w-4 h-4" />All Medications</div>
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="btn btn-secondary no-print"><Printer className="w-4 h-4" />Print</button>
+          <button onClick={handleExport} className="btn btn-primary"><Download className="w-4 h-4" />Download<span className="badge" style={{ background: 'rgba(255,255,255,0.2)', marginLeft: '0.5rem' }}>{prescriptionData.length}</span></button>
+        </div>
       </div>
+
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {prescriptionData.map((med, idx) => (
-          <div key={idx} className="card p-5">
-            <div className="flex items-start justify-between gap-2 mb-3">
+          <div key={idx} className="card card-body">
+            <div className="flex items-start justify-between gap-3 mb-4">
               <ProgramBadge program={med.program} />
-              {med.controlled && <span className="badge bg-red-100 text-red-600 border border-red-200"><AlertCircle className="w-3 h-3 mr-1" />Controlled</span>}
+              {med.controlled && <span className="badge badge-controlled"><AlertCircle className="w-3 h-3" />Controlled</span>}
             </div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">{med.medication}<CopyButton text={med.medication} /></h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 rounded-lg"><FormIcon form={med.form} /></div>
-                <div><div className="text-xs opacity-50 uppercase tracking-wide">Form</div><div className="font-medium">{formLabels[med.form] || med.form}</div></div>
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>{med.medication}<CopyButton text={med.medication} /></h3>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="stat-icon" style={{ width: '44px', height: '44px' }}><FormIcon form={med.form} /></div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Form</div>
+                  <div style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formLabels[med.form] || med.form}</div>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 rounded-lg"><MapPin className="w-5 h-5 text-blue-500" /></div>
-                <div><div className="text-xs opacity-50 uppercase tracking-wide">Route</div><div>{med.route}</div></div>
+              <div className="flex items-center gap-4">
+                <div className="stat-icon" style={{ width: '44px', height: '44px' }}><MapPin className="w-5 h-5" style={{ color: 'var(--accent)' }} /></div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Route</div>
+                  <div style={{ color: 'var(--text-secondary)' }}>{med.route}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -651,125 +596,134 @@ const MedicationsTab = () => {
 };
 
 const StateCoverageTab = ({ initialState = '' }) => {
-  const [selectedState, setSelectedState] = useState(initialState);
+  const [state, setState] = useState(initialState);
   const [compareState, setCompareState] = useState('');
-  const [showCompare, setShowCompare] = useState(false);
+  const [comparing, setComparing] = useState(false);
   const states = Object.keys(statesData).sort();
-  
-  const getStatusText = (status) => status === true ? 'Available' : status === false ? 'Unavailable' : status === 'limited' ? 'Limited' : 'Unknown';
 
-  const handleDownload = (state) => {
-    if (!state || !statesData[state]) return;
-    const coverage = statesData[state];
+  const getStatusText = (s) => s === true ? 'Available' : s === false ? 'Unavailable' : s === 'limited' ? 'Limited' : 'Unknown';
+
+  const handleExport = (st) => {
+    if (!st) return;
     const rows = [];
-    ['Empower', 'Curexa', 'TPH', 'Absolute', 'Belmar'].forEach(p => rows.push({ state, program: 'TRT', pharmacy: p, status: getStatusText(coverage.TRT?.[p]) }));
-    ['Belmar', 'Curexa'].forEach(p => rows.push({ state, program: 'HRT', pharmacy: p, status: getStatusText(coverage.HRT?.[p]) }));
-    ['Curexa', 'TPH', 'Absolute', 'RedRock'].forEach(p => rows.push({ state, program: 'GLP', pharmacy: p, status: getStatusText(coverage.GLP?.[p]) }));
-    downloadCSV(rows, `state-coverage-${state.replace(/\s+/g, '-')}`, [
-      { label: 'State', accessor: d => d.state }, { label: 'Program', accessor: d => d.program }, { label: 'Pharmacy', accessor: d => d.pharmacy }, { label: 'Status', accessor: d => d.status },
+    const c = statesData[st];
+    ['Empower', 'Curexa', 'TPH', 'Absolute', 'Belmar'].forEach(p => rows.push({ state: st, program: 'TRT', pharmacy: p, status: getStatusText(c.TRT?.[p]) }));
+    ['Belmar', 'Curexa'].forEach(p => rows.push({ state: st, program: 'HRT', pharmacy: p, status: getStatusText(c.HRT?.[p]) }));
+    ['Curexa', 'TPH', 'Absolute', 'RedRock'].forEach(p => rows.push({ state: st, program: 'GLP', pharmacy: p, status: getStatusText(c.GLP?.[p]) }));
+    downloadCSV(rows, `coverage-${st.replace(/\s+/g, '-')}`, [
+      { label: 'State', accessor: d => d.state }, { label: 'Program', accessor: d => d.program },
+      { label: 'Pharmacy', accessor: d => d.pharmacy }, { label: 'Status', accessor: d => d.status },
     ]);
   };
 
-  const handleDownloadAllStates = () => {
+  const handleExportAll = () => {
     const rows = [];
-    Object.entries(statesData).forEach(([state, coverage]) => {
-      ['Empower', 'Curexa', 'TPH', 'Absolute', 'Belmar'].forEach(p => rows.push({ state, program: 'TRT', pharmacy: p, status: getStatusText(coverage.TRT?.[p]) }));
-      ['Belmar', 'Curexa'].forEach(p => rows.push({ state, program: 'HRT', pharmacy: p, status: getStatusText(coverage.HRT?.[p]) }));
-      ['Curexa', 'TPH', 'Absolute', 'RedRock'].forEach(p => rows.push({ state, program: 'GLP', pharmacy: p, status: getStatusText(coverage.GLP?.[p]) }));
+    Object.entries(statesData).forEach(([st, c]) => {
+      ['Empower', 'Curexa', 'TPH', 'Absolute', 'Belmar'].forEach(p => rows.push({ state: st, program: 'TRT', pharmacy: p, status: getStatusText(c.TRT?.[p]) }));
+      ['Belmar', 'Curexa'].forEach(p => rows.push({ state: st, program: 'HRT', pharmacy: p, status: getStatusText(c.HRT?.[p]) }));
+      ['Curexa', 'TPH', 'Absolute', 'RedRock'].forEach(p => rows.push({ state: st, program: 'GLP', pharmacy: p, status: getStatusText(c.GLP?.[p]) }));
     });
-    downloadCSV(rows, 'state-coverage-all-states', [
-      { label: 'State', accessor: d => d.state }, { label: 'Program', accessor: d => d.program }, { label: 'Pharmacy', accessor: d => d.pharmacy }, { label: 'Status', accessor: d => d.status },
+    downloadCSV(rows, 'coverage-all-states', [
+      { label: 'State', accessor: d => d.state }, { label: 'Program', accessor: d => d.program },
+      { label: 'Pharmacy', accessor: d => d.pharmacy }, { label: 'Status', accessor: d => d.status },
     ]);
   };
-  
-  const CoverageSection = ({ program, coverage, pharmacyList, color, icon: Icon }) => {
-    const colorMap = { blue: { border: 'border-blue-200', header: 'bg-blue-600 text-white' }, rose: { border: 'border-rose-200', header: 'bg-rose-500 text-white' }, teal: { border: 'border-teal-200', header: 'bg-teal-600 text-white' } };
-    const c = colorMap[color];
-    return (
-      <div className={`card overflow-hidden ${c.border}`}>
-        <div className={`px-4 py-3 ${c.header} flex items-center gap-2`}><Icon className="w-4 h-4" /><h3 className="font-semibold">{program} Coverage</h3></div>
-        <div className="p-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {pharmacyList.map(pharmacy => (
-              <div key={pharmacy} className="flex items-center justify-between bg-[var(--bg-tertiary)] rounded-lg px-3 py-2">
-                <span className="text-sm flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 opacity-40" />{pharmacy}</span>
-                <StatusIcon status={coverage?.[pharmacy]} />
-              </div>
-            ))}
-          </div>
+
+  const CoverageSection = ({ prog, coverage, list, type }) => (
+    <div className="coverage-card">
+      <div className={`coverage-header ${type}`}>
+        {type === 'trt' && <Activity className="w-4 h-4" />}
+        {type === 'hrt' && <Heart className="w-4 h-4" />}
+        {type === 'glp' && <Scale className="w-4 h-4" />}
+        {prog} Coverage
+      </div>
+      <div className="coverage-body">
+        <div className="coverage-grid">
+          {list.map(p => (
+            <div key={p} className="coverage-item">
+              <span className="coverage-item-name"><Building2 className="w-3.5 h-3.5" style={{ color: 'var(--text-faint)' }} />{p}</span>
+              <StatusIndicator status={coverage?.[p]} />
+            </div>
+          ))}
         </div>
       </div>
-    );
-  };
+    </div>
+  );
 
-  const StateCoverage = ({ state, showHeader = true }) => {
-    if (!state || !statesData[state]) return null;
+  const StateCoverage = ({ st, showTitle = true }) => {
+    if (!st || !statesData[st]) return null;
+    const c = statesData[st];
     return (
       <div className="space-y-4">
-        {showHeader && <h3 className="text-lg font-semibold flex items-center gap-2"><MapPin className="w-5 h-5" />{state}</h3>}
-        <CoverageSection program="TRT" coverage={statesData[state].TRT} pharmacyList={['Empower', 'Curexa', 'TPH', 'Absolute', 'Belmar']} color="blue" icon={Activity} />
-        <CoverageSection program="HRT" coverage={statesData[state].HRT} pharmacyList={['Belmar', 'Curexa']} color="rose" icon={Heart} />
-        <CoverageSection program="GLP" coverage={statesData[state].GLP} pharmacyList={['Curexa', 'TPH', 'Absolute', 'RedRock']} color="teal" icon={Scale} />
+        {showTitle && <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><MapPin className="w-5 h-5" style={{ color: 'var(--accent)' }} />{st}</h3>}
+        <CoverageSection prog="TRT" coverage={c.TRT} list={['Empower', 'Curexa', 'TPH', 'Absolute', 'Belmar']} type="trt" />
+        <CoverageSection prog="HRT" coverage={c.HRT} list={['Belmar', 'Curexa']} type="hrt" />
+        <CoverageSection prog="GLP" coverage={c.GLP} list={['Curexa', 'TPH', 'Absolute', 'RedRock']} type="glp" />
       </div>
     );
   };
 
   return (
-    <div className="space-y-6 animate-in">
-      <div className="card p-4">
+    <div className="animate-in space-y-6">
+      {/* Selector */}
+      <div className="card card-body">
         <div className="flex flex-col md:flex-row md:items-end gap-4">
           <div className="flex-1">
-            <label className="block text-xs font-mono uppercase tracking-wide text-blue-600 mb-1.5 flex items-center gap-1"><MapPin className="w-3 h-3" />Select State</label>
-            <div className="relative">
-              <Map className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40" />
-              <select value={selectedState} onChange={e => { setSelectedState(e.target.value); setShowCompare(false); }} className="input select md:w-72 pl-10">
+            <label className="form-label"><MapPin className="w-3 h-3" />Select State</label>
+            <div className="input-icon">
+              <Map className="icon w-4 h-4" />
+              <select className="form-input form-select md:w-80" style={{ paddingLeft: '2.75rem' }} value={state} onChange={e => { setState(e.target.value); setComparing(false); }}>
                 <option value="">Choose a state...</option>
-                {states.map(state => <option key={state} value={state}>{state}</option>)}
+                {states.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
-          {selectedState && (
+          {state && (
             <div className="flex gap-2">
-              <button onClick={() => setShowCompare(!showCompare)} className={`btn ${showCompare ? 'btn-primary' : 'btn-secondary'}`}><ArrowLeftRight className="w-4 h-4" />Compare</button>
-              <DownloadButton onClick={() => handleDownload(selectedState)} label={`Download`} />
-              <button onClick={handleDownloadAllStates} className="btn btn-secondary"><FileSpreadsheet className="w-4 h-4" />All States</button>
+              <button onClick={() => setComparing(!comparing)} className={`btn ${comparing ? 'btn-primary' : 'btn-secondary'}`}><ArrowLeftRight className="w-4 h-4" />Compare</button>
+              <button onClick={() => handleExport(state)} className="btn btn-primary"><Download className="w-4 h-4" />{state}</button>
+              <button onClick={handleExportAll} className="btn btn-secondary"><FileSpreadsheet className="w-4 h-4" />All States</button>
             </div>
           )}
         </div>
-        {showCompare && selectedState && (
-          <div className="mt-4 pt-4 border-t border-[var(--border-primary)]">
-            <label className="block text-xs font-mono uppercase tracking-wide text-blue-600 mb-1.5 flex items-center gap-1"><ArrowLeftRight className="w-3 h-3" />Compare with</label>
-            <select value={compareState} onChange={e => setCompareState(e.target.value)} className="input select md:w-72">
-              <option value="">Choose another state...</option>
-              {states.filter(s => s !== selectedState).map(state => <option key={state} value={state}>{state}</option>)}
+        {comparing && state && (
+          <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border-muted)' }}>
+            <label className="form-label"><ArrowLeftRight className="w-3 h-3" />Compare with</label>
+            <select className="form-input form-select md:w-80" value={compareState} onChange={e => setCompareState(e.target.value)}>
+              <option value="">Select another state...</option>
+              {states.filter(s => s !== state).map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
         )}
       </div>
-      
-      {selectedState && statesData[selectedState] ? (
-        showCompare && compareState ? (
+
+      {/* Coverage */}
+      {state && statesData[state] ? (
+        comparing && compareState ? (
           <div className="compare-grid">
-            <StateCoverage state={selectedState} />
-            <StateCoverage state={compareState} />
+            <StateCoverage st={state} />
+            <StateCoverage st={compareState} />
           </div>
         ) : (
           <>
-            <StateCoverage state={selectedState} showHeader={false} />
-            <div className="card p-4">
-              <h4 className="text-xs font-mono uppercase tracking-wide opacity-50 mb-3 flex items-center gap-1"><Info className="w-3 h-3" />Legend</h4>
-              <div className="flex flex-wrap gap-6 text-sm">
-                <div className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /><span className="opacity-70">Available — Full service</span></div>
-                <div className="flex items-center gap-2"><X className="w-4 h-4 text-red-500" /><span className="opacity-70">Unavailable — Not offered</span></div>
-                <div className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" /><span className="opacity-70">Limited — Restrictions apply</span></div>
+            <StateCoverage st={state} showTitle={false} />
+            <div className="card card-body">
+              <div className="section-title" style={{ marginBottom: '1rem' }}><Info className="w-4 h-4" />Legend</div>
+              <div className="flex flex-wrap gap-8">
+                <div className="flex items-center gap-2"><Check className="w-5 h-5" style={{ color: 'var(--success)' }} /><span style={{ color: 'var(--text-muted)' }}>Available — Full service</span></div>
+                <div className="flex items-center gap-2"><X className="w-5 h-5" style={{ color: 'var(--danger)' }} /><span style={{ color: 'var(--text-muted)' }}>Unavailable — Not offered</span></div>
+                <div className="flex items-center gap-2"><AlertTriangle className="w-5 h-5" style={{ color: 'var(--warning)' }} /><span style={{ color: 'var(--text-muted)' }}>Limited — Restrictions apply</span></div>
               </div>
             </div>
           </>
         )
       ) : (
-        <div className="card p-12 text-center">
-          <div className="inline-flex p-4 bg-blue-50 rounded-full mb-4"><Map className="w-10 h-10 text-blue-400" /></div>
-          <p className="opacity-50">Select a state to view pharmacy coverage</p>
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-icon"><Map className="w-10 h-10" /></div>
+            <div className="empty-state-title">Select a State</div>
+            <p className="empty-state-text">Choose a state from the dropdown above to view pharmacy coverage information.</p>
+          </div>
         </div>
       )}
     </div>
@@ -781,12 +735,12 @@ const StateCoverageTab = ({ initialState = '' }) => {
 // ============================================================================
 
 export default function PharmacyMatrix() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [tab, setTab] = useState('overview');
   const [tabParams, setTabParams] = useState({});
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const [theme, toggleTheme] = useTheme();
-  const [recentSearches, addRecentSearch] = useRecentSearches();
-  
+  const [recent, addRecent] = useRecentSearches();
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'lookup', label: 'Pharmacy Lookup', icon: Search },
@@ -794,95 +748,94 @@ export default function PharmacyMatrix() {
     { id: 'states', label: 'State Coverage', icon: MapPin },
   ];
 
-  // Global keyboard shortcut
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setCommandPaletteOpen(true); }
-      if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) { e.preventDefault(); setCommandPaletteOpen(true); }
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setCmdOpen(true); }
+      if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) { e.preventDefault(); setCmdOpen(true); }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const handleNavigate = (tab, params = {}) => {
-    setActiveTab(tab);
-    setTabParams(params);
-  };
+  const navigate = (t, params = {}) => { setTab(t); setTabParams(params); };
 
   return (
     <div className="min-h-screen flex flex-col">
-      <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} onNavigate={handleNavigate} addRecent={addRecentSearch} />
-      
-      <header className="sticky top-0 z-50 bg-[var(--bg-primary)]/90 backdrop-blur-sm border-b border-[var(--border-primary)]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+      <CommandPalette isOpen={cmdOpen} onClose={() => setCmdOpen(false)} onNavigate={navigate} addRecent={addRecent} />
+
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }}>
+        <div className="container">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-600 rounded-lg"><Package className="w-5 h-5 text-white" /></div>
-              <div><h1 className="text-xl font-bold">Pharmacy Matrix</h1><p className="text-xs font-mono opacity-50 -mt-0.5">Internal Reference</p></div>
+              <div className="stat-icon" style={{ width: '40px', height: '40px', background: 'var(--accent)', color: 'white', borderRadius: '10px' }}>
+                <Package className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Pharmacy Matrix</h1>
+                <p className="text-xs font-mono" style={{ color: 'var(--text-faint)', marginTop: '-2px' }}>Internal Reference</p>
+              </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <button onClick={() => setCommandPaletteOpen(true)} className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-tertiary)] rounded-lg text-sm opacity-60 hover:opacity-100 transition-opacity">
-                <Search className="w-4 h-4" /><span>Search...</span><kbd className="ml-2 px-1.5 py-0.5 bg-[var(--bg-secondary)] rounded text-xs">⌘K</kbd>
+
+            <div className="flex items-center gap-3">
+              <button onClick={() => setCmdOpen(true)} className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>
+                <Search className="w-4 h-4" /><span>Search</span><kbd className="ml-2 px-1.5 py-0.5 rounded text-xs font-mono" style={{ background: 'var(--bg-subtle)', color: 'var(--text-faint)' }}>⌘K</kbd>
               </button>
-              <button onClick={toggleTheme} className="btn btn-ghost p-2" title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+              <button onClick={toggleTheme} className="btn btn-icon btn-ghost" title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
                 {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </button>
             </div>
           </div>
-          
-          <nav className="hidden md:flex items-center gap-1 pb-3">
-            {tabs.map(tab => (
-              <button key={tab.id} onClick={() => { setActiveTab(tab.id); setTabParams({}); }} className={`tab flex items-center gap-1.5 ${activeTab === tab.id ? 'tab-active' : 'tab-inactive'}`}>
-                <tab.icon className="w-4 h-4" />{tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-        
-        <div className="md:hidden px-4 pb-3 overflow-x-auto">
-          <div className="flex gap-1 w-fit">
-            {tabs.map(tab => (
-              <button key={tab.id} onClick={() => { setActiveTab(tab.id); setTabParams({}); }} className={`tab whitespace-nowrap text-xs flex items-center gap-1 ${activeTab === tab.id ? 'tab-active' : 'tab-inactive'}`}>
-                <tab.icon className="w-3.5 h-3.5" />{tab.label}
-              </button>
-            ))}
+
+          {/* Tabs */}
+          <div className="pb-4 -mb-px overflow-x-auto no-print">
+            <div className="tab-list inline-flex">
+              {tabs.map(t => (
+                <button key={t.id} onClick={() => { setTab(t.id); setTabParams({}); }} className={`tab ${tab === t.id ? 'tab-active' : 'tab-inactive'}`}>
+                  <t.icon className="w-4 h-4" /><span className="hidden sm:inline">{t.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </header>
-      
-      <div className="bg-amber-50 border-b border-amber-200 no-print">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2.5">
-          <p className="text-sm text-amber-800 flex items-start gap-2">
+
+      {/* Warning */}
+      <div className="no-print" style={{ background: '#fef3c7', borderBottom: '1px solid #fde68a' }}>
+        <div className="container py-3">
+          <p className="text-sm flex items-start gap-2" style={{ color: '#92400e' }}>
             <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span><strong>Reminder:</strong> CS is not allowed to provide medical advice or information about medications. Please direct these inquiries to the medical team.</span>
           </p>
         </div>
       </div>
-      
-      {recentSearches.length > 0 && activeTab === 'overview' && (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 no-print">
-          <div className="flex items-center gap-2 mb-2 text-xs font-mono uppercase tracking-wide opacity-50"><Clock className="w-3 h-3" />Recent</div>
-          <div className="flex flex-wrap gap-2">
-            {recentSearches.map(item => (
-              <button key={item.id} onClick={() => handleNavigate(item.type === 'state' ? 'states' : 'lookup', item.type === 'state' ? { state: item.data.state } : item.type === 'pharmacy' ? { pharmacy: item.data.pharmacy } : { search: item.data.medication })} className="recent-item">
-                <item.icon className="w-3.5 h-3.5" />{item.title}
+
+      {/* Recent */}
+      {recent.length > 0 && tab === 'overview' && (
+        <div className="container pt-6 no-print">
+          <div className="section-title" style={{ marginBottom: '0.75rem' }}><Clock className="w-4 h-4" />Recent Searches</div>
+          <div className="recent-list">
+            {recent.map(r => (
+              <button key={r.id} onClick={() => navigate(r.type === 'state' ? 'states' : 'lookup', r.type === 'state' ? { state: r.data.state } : r.type === 'pharmacy' ? { pharmacy: r.data.pharmacy } : { search: r.data.medication })} className="recent-item">
+                <r.icon className="w-4 h-4" />{r.title}
               </button>
             ))}
           </div>
         </div>
       )}
-      
-      <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-8 w-full">
-        {activeTab === 'overview' && <OverviewTab />}
-        {activeTab === 'lookup' && <PharmacyLookupTab initialFilters={tabParams} />}
-        {activeTab === 'medications' && <MedicationsTab />}
-        {activeTab === 'states' && <StateCoverageTab initialState={tabParams.state} />}
+
+      {/* Main */}
+      <main className="container flex-1 py-8">
+        {tab === 'overview' && <OverviewTab />}
+        {tab === 'lookup' && <PharmacyLookupTab initialFilters={tabParams} />}
+        {tab === 'medications' && <MedicationsTab />}
+        {tab === 'states' && <StateCoverageTab initialState={tabParams.state} />}
       </main>
-      
-      <footer className="border-t border-[var(--border-primary)] bg-[var(--bg-primary)] no-print">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
-          <p className="text-center text-sm opacity-50 flex items-center justify-center gap-2">
+
+      {/* Footer */}
+      <footer className="border-t no-print" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }}>
+        <div className="container py-4">
+          <p className="text-center text-sm flex items-center justify-center gap-2" style={{ color: 'var(--text-faint)' }}>
             <Package className="w-4 h-4" />Pharmacy Matrix · Internal Use Only · Updated January 2026
           </p>
         </div>
